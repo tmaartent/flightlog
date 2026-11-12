@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: flightlog
+      POSTGRES_USER: flightlog
+      POSTGRES_PASSWORD: flightlog
+    ports:
+      - "5433:5432"   # 5433 on the host, so it doesn't clash with another local PostgreSQL
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flightlog -d flightlog"]
+      interval: 5s
+      retries: 10
+
+  # M4: add the app and the worker here, built from your own Dockerfile.
+
+volumes:
+  pgdata:
