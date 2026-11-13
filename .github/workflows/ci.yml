@@ -20,9 +20,9 @@ jobs:
           --health-cmd "pg_isready -U flightlog -d flightlog"
           --health-interval 5s --health-retries 10
     env:
-      DATABASE_URL: postgresql+psycopg://flightlog:flightlog@localhost:5433/flightlog
-      GITHUB_WEBHOOK_SECRET: ci-secret
-      CLAUDE_HOOK_SECRET: ci-secret
+      FLASK_DATABASE_URL: postgresql+psycopg://flightlog:flightlog@localhost:5433/flightlog
+      FLASK_GITHUB_WEBHOOK_SECRET: ci-secret
+      FLASK_CLAUDE_HOOK_SECRET: ci-secret
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
