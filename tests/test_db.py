@@ -20,11 +20,14 @@ def test_each_request_gets_its_own_session(app):
 
 
 @pytest.mark.db
-def test_the_connection_goes_back_to_the_pool_after_a_request(app, client):
+def test_the_connection_goes_back_to_the_pool_after_a_request(app_factory):
+    # The `app` fixture routes sessions through the test transaction; this test needs the
+    # app's own engine and pool, so it builds an app without that override.
+    app = app_factory()
     engine: Engine = app.extensions["db"]
     assert isinstance(engine.pool, QueuePool)
 
-    client.get("/health")  # runs SELECT 1 through get_session()
+    app.test_client().get("/health")  # runs SELECT 1 through get_session()
 
     assert engine.pool.checkedout() == 0
     assert engine.pool.checkedin() == 1

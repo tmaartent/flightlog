@@ -1,16 +1,5 @@
-import hashlib
-import hmac
-
 from flightlog.signatures import verify
-
-
-def make_signature(payload: bytes, secret: str) -> str:
-    digest = hmac.new(
-        secret.encode("utf-8"),
-        msg=payload,
-        digestmod=hashlib.sha256,
-    ).hexdigest()
-    return f"sha256={digest}"
+from tests.util import make_signature
 
 
 def test_a_correct_signature_returns_true():
