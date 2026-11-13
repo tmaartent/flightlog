@@ -30,6 +30,8 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Lets tests import shared helpers as `tests.util`, also when run as plain `pytest`.
+pythonpath = ["."]
 markers = [
     "db: needs the PostgreSQL from docker compose",
     "e2e: Playwright end-to-end test against a running app",

@@ -5,8 +5,9 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine, create_engine, make_url, text
-from sqlalchemy.orm import Session
+from flask import Flask
+from sqlalchemy import Connection, Engine, create_engine, make_url, text
+from sqlalchemy.orm import Session, sessionmaker
 
 from flightlog import create_app
 
@@ -16,24 +17,44 @@ TEST_DATABASE_URL = os.environ.get(
     "postgresql+psycopg://flightlog:flightlog@localhost:5433/flightlog_test",
 )
 
+TEST_GITHUB_SECRET = "test-github-secret"
+TEST_CLAUDE_SECRET = "test-claude-secret"
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-@pytest.fixture
-def app(db_engine):
-    """A fresh app per test. test_config is applied last, so it wins over .env.
-
-    Depends on db_engine so the test database exists and is migrated before any request.
-    """
-    app = create_app(
+def make_app(**overrides) -> Flask:
+    """An app with the test config. test_config is applied last, so it wins over .env."""
+    return create_app(
         {
             "TESTING": True,
             "DATABASE_URL": TEST_DATABASE_URL,
-            "GITHUB_WEBHOOK_SECRET": "test-github-secret",
-            "CLAUDE_HOOK_SECRET": "test-claude-secret",
+            "GITHUB_WEBHOOK_SECRET": TEST_GITHUB_SECRET,
+            "CLAUDE_HOOK_SECRET": TEST_CLAUDE_SECRET,
+            **overrides,
         }
     )
-    yield app
+
+
+@pytest.fixture
+def app(db_connection: Connection) -> Flask:
+    """A fresh app per test whose requests run inside the test's transaction.
+
+    get_session() in a route uses the same connection as the db_session fixture, so a test
+    can post a webhook and then query what the route stored. Everything is rolled back
+    after the test, including what the route committed.
+    """
+    app = make_app()
+    app.extensions["sessionmaker"] = sessionmaker(
+        bind=db_connection, join_transaction_mode="create_savepoint"
+    )
+    return app
+
+
+@pytest.fixture
+def app_factory(db_engine):
+    """For tests that need an app with its own engine, or a different config."""
+    return make_app
 
 
 @pytest.fixture
@@ -83,19 +104,24 @@ def db_engine() -> Iterator[Engine]:
 
 
 @pytest.fixture
-def db_session(db_engine: Engine) -> Iterator[Session]:
-    """A session inside a transaction that is rolled back after the test.
-
-    The test may call commit() and rollback() as usual: with "create_savepoint" those only
-    affect a SAVEPOINT inside the outer transaction, and the outer transaction is rolled
-    back at the end. Nothing a test writes survives it.
-    """
+def db_connection(db_engine: Engine) -> Iterator[Connection]:
+    """One connection per test, inside a transaction that is rolled back at the end."""
     connection = db_engine.connect()
     outer = connection.begin()
-    session = Session(bind=connection, join_transaction_mode="create_savepoint")
 
-    yield session
+    yield connection
 
-    session.close()
     outer.rollback()
     connection.close()
+
+
+@pytest.fixture
+def db_session(db_connection: Connection) -> Iterator[Session]:
+    """A session on the test's connection.
+
+    The test may call commit() and rollback() as usual: with "create_savepoint" those only
+    affect a SAVEPOINT inside the outer transaction, which is rolled back after the test.
+    """
+    session = Session(bind=db_connection, join_transaction_mode="create_savepoint")
+    yield session
+    session.close()
