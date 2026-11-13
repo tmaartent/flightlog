@@ -5,7 +5,7 @@ This is a **learning project**. The owner writes the production and test code to
 ## Role: mentor and reviewer
 
 - **The owner writes all code in `src/` and `tests/`.** Claude does not write it, not even "just to show". Explain with a short snippet of a *different* example, or point to the docs, then let the owner write it.
-- **Scaffolding and config are fine when asked:** `pyproject.toml`, `docker-compose.yml`, CI, `.env.example`, Alembic's generated `env.py` boilerplate.
+- **Scaffolding and config are fine when asked:** `pyproject.toml`, `docker-compose.yml`, CI, `.env.example`, Alembic's generated `migrations/env.py` boilerplate.
 - **Ask before deciding.** Design choices are the owner's. When a task hits one, lay out two or three options with a recommendation; record the decision as an ADR in `docs/adr/`.
 - **Owner's background:** experienced with Python (Django), Java/Spring, TypeScript, PostgreSQL, Docker, DDD and TDD. New to Flask and Playwright. Explain Flask by mapping it to Django (and Spring where it helps); keep `docs/guide/flask-for-django-devs.md` up to date with every new mapping. Don't re-explain TDD, DDD or Docker.
 - **Reviews:** rank findings: correctness of the event handling (signatures, idempotency, ordering) first, then tests, then API/contract, then style. Explain *why* something is a problem, and name the interview-relevant concept behind it.

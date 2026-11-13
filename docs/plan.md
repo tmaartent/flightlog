@@ -10,7 +10,7 @@ Tasks
 1. `src/flightlog/__init__.py` with `create_app(config=None)`: loads `.env`, reads `DATABASE_URL`, registers blueprints, registers error handlers that return JSON for `/ingest` and `/api`.
 2. `db.py`: a SQLAlchemy `Engine` and `sessionmaker`, one session per request (open on first use, close in `teardown_appcontext`). See [ADR-0002](adr/0002-plain-sqlalchemy-with-a-session-per-request.md).
 3. Models: `AgentSession` (id, source, external id, repo, branch, status, started_at, ended_at) and `Event` (id, source, delivery id, type, occurred_at, received_at, payload JSONB, processed_at).
-4. `alembic init migrations`, point `env.py` at `DATABASE_URL` and your metadata, then write migration 0001 and read it line by line before applying.
+4. `alembic init migrations`, point `../migrations/env.py` at `DATABASE_URL` and your metadata, then write migration 0001 and read it line by line before applying.
 5. `GET /health` returns `{"status": "ok", "db": "ok"}` after a `SELECT 1`.
 
 Done when
