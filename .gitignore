@@ -9,3 +9,6 @@ test-results/
 playwright-report/
 .idea/
 .vscode/
+
+# Claude Code: personal settings and the hook secret
+.claude/settings.local.json
