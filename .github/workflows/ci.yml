@@ -31,6 +31,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: playwright install --with-deps chromium
       - run: ruff check . && ruff format --check .
+      - run: lint-imports
       - run: alembic upgrade head
         if: hashFiles('alembic.ini') != ''
       - run: pytest

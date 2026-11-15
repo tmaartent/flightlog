@@ -4,11 +4,11 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from flightlog.models import AgentSession, EventLog
+from flightlog.domain import AgentSession, RecordedEvent
 
 
 def test_inserting_event_log_twice_throws_integrity_error(db_session: Session):
-    event = EventLog(
+    event = RecordedEvent(
         source="github",
         delivery_id="1234",
         type="pull_request",
@@ -21,7 +21,7 @@ def test_inserting_event_log_twice_throws_integrity_error(db_session: Session):
     db_session.add(event)
     db_session.commit()
 
-    event2 = EventLog(
+    event2 = RecordedEvent(
         source="github",
         delivery_id="1234",
         type="pull_request",

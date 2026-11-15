@@ -1,4 +1,4 @@
-from flightlog.signatures import verify
+from flightlog.api.signatures import verify
 from tests.util import make_signature
 
 

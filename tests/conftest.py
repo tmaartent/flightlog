@@ -10,6 +10,7 @@ from sqlalchemy import Connection, Engine, create_engine, make_url, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from flightlog import create_app
+from flightlog.infrastructure.mapping import start_mappers
 
 # A separate database, so tests never touch the data you see in `flask run`.
 TEST_DATABASE_URL = os.environ.get(
@@ -92,6 +93,7 @@ def db_engine() -> Iterator[Engine]:
     Running the real migrations (not metadata.create_all) means every test run also
     tests the migrations.
     """
+    start_mappers()  # ORM tests use the domain classes without building an app
     _create_test_database_if_missing(TEST_DATABASE_URL)
 
     alembic_cfg = Config(str(REPO_ROOT / "alembic.ini"))

@@ -15,10 +15,17 @@ This is a **learning project**. The owner writes the production and test code to
 ## Project conventions
 
 - Plan and acceptance criteria: `docs/plan.md`. Decisions: `docs/adr/`.
-- Layout: `src/flightlog/` (app factory in `__init__.py`, one blueprint per area: `ingest`, `dashboard`, `api`), `tests/`, `migrations/` (Alembic), `scripts/` (the hook client).
-- SQLAlchemy 2 style: typed `Mapped[...]` models, `select()` queries, no legacy `Query` API.
+- Layers (ADR-0007), enforced by `lint-imports` in CI:
+  - `domain/`: entities and their rules as plain dataclasses. No Flask, no SQLAlchemy.
+  - `contracts/`: commands in, results out (frozen dataclasses).
+  - `application/`: use cases; reach the outside world only through the Protocols in `ports.py`.
+  - `infrastructure/`: SQLAlchemy tables, imperative mapping, repositories, unit of work, request session.
+  - `api/`: Flask blueprints and CLI; never imports infrastructure (adapters come from `app.extensions`).
+  - `__init__.py`: `create_app`, the composition root that wires the layers together.
+- Other folders: `tests/` (one subfolder per layer), `migrations/` (Alembic, against `infrastructure.tables.metadata`), `scripts/` (the hook client).
+- SQLAlchemy 2 style: `Table` definitions in `infrastructure/tables.py`, imperative mapping onto the domain classes, `select()` queries, no legacy `Query` API.
 - Every schema change is an Alembic migration, reviewed by hand. Autogenerate is a draft, never the final word.
-- Tests: pytest. Unit tests for signature checks and the session state machine; integration tests against a real PostgreSQL (docker compose); Playwright for end-to-end.
+- Tests: pytest. Domain and application tests without Flask or a database (fakes for the ports); infrastructure and API tests against a real PostgreSQL (docker compose); Playwright for end-to-end.
 - Commits: Conventional Commits (`feat(ingest): verify GitHub signatures`). No AI co-author lines.
 
 ## Commands

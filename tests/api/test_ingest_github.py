@@ -6,8 +6,8 @@ from pytest import MonkeyPatch
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from flightlog.ingest import extract_event_timestamp
-from flightlog.models import EventLog
+from flightlog.api.ingest import extract_event_timestamp
+from flightlog.domain import RecordedEvent
 from tests.util import make_signature
 
 PAYLOAD = {"action": "opened", "pull_request": {"updated_at": "2026-11-13T21:15:30Z"}}
@@ -42,7 +42,7 @@ def post_delivery(
 
 
 def stored_events(session: Session) -> int:
-    return session.scalar(select(func.count()).select_from(EventLog))
+    return session.scalar(select(func.count()).select_from(RecordedEvent))
 
 
 @pytest.mark.db
@@ -52,7 +52,7 @@ def test_a_valid_delivery_is_stored_and_returns_202(client, db_session):
     assert response.status_code == 202
     assert response.get_json() == {"status": "created"}
 
-    event = db_session.scalars(select(EventLog)).one()
+    event = db_session.scalars(select(RecordedEvent)).one()
     assert event.source == "github"
     assert event.delivery_id == "delivery-001"
     assert event.type == "pull_request"

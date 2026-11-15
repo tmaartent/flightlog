@@ -3,11 +3,11 @@ from typing import Any
 
 from flask import Blueprint, abort, current_app, request
 from flask.typing import ResponseReturnValue
-from sqlalchemy.dialects.postgresql import insert
 
-from flightlog.db import get_session
-from flightlog.models import EventLog
-from flightlog.signatures import verify
+from flightlog.api.signatures import verify
+from flightlog.application.ingest import ingest_event
+from flightlog.application.ports import UnitOfWork
+from flightlog.contracts.ingest import IngestEvent, IngestResult
 
 bp = Blueprint("ingest", __name__, url_prefix="/ingest")
 
@@ -32,10 +32,14 @@ def github() -> ResponseReturnValue:
     if not isinstance(payload, dict):
         abort(400, "Payload must be a JSON object")
 
-    occurred_at = extract_event_timestamp(event_type, payload)
-    new_id = store_event_log(delivery_id, event_type, "github", payload, occurred_at)
-
-    return {"status": "created" if new_id is not None else "duplicate"}, 202
+    command = IngestEvent(
+        source="github",
+        delivery_id=delivery_id,
+        type=event_type,
+        occurred_at=extract_event_timestamp(event_type, payload),
+        payload=payload,
+    )
+    return accepted(ingest_event(command, unit_of_work()))
 
 
 @bp.route("/claude", methods=["POST"])
@@ -65,9 +69,24 @@ def claude() -> ResponseReturnValue:
     if not isinstance(event_type, str) or not event_type:
         abort(400, "hook.hook_event_name is required")
 
-    new_id = store_event_log(delivery_id, event_type, "claude", envelope, occurred_at)
+    command = IngestEvent(
+        source="claude",
+        delivery_id=delivery_id,
+        type=event_type,
+        occurred_at=occurred_at,
+        payload=envelope,
+    )
+    return accepted(ingest_event(command, unit_of_work()))
 
-    return {"status": "created" if new_id is not None else "duplicate"}, 202
+
+def unit_of_work() -> UnitOfWork:
+    """The unit of work wired in by create_app (the API doesn't know which implementation)."""
+    return current_app.extensions["unit_of_work"]()
+
+
+def accepted(result: IngestResult) -> ResponseReturnValue:
+    # 202 for a duplicate too: the sender did nothing wrong, it just delivered twice.
+    return {"status": result.outcome.value}, 202
 
 
 def parse_aware_datetime(value: Any) -> datetime.datetime | None:
@@ -107,31 +126,3 @@ def extract_event_timestamp(event_type: str, payload: dict[str, Any]) -> datetim
 
     # Fallback to current UTC time if no timestamp field is present
     return datetime.datetime.now(datetime.UTC)
-
-
-def store_event_log(
-    delivery_id: str,
-    event_type: str,
-    source: str,
-    payload: dict[str, Any],
-    occurred_at: datetime.datetime,
-) -> int | None:
-    """Store an event once per (source, delivery_id). Returns the new id, or None if duplicate."""
-    statement = (
-        insert(EventLog)
-        .values(
-            delivery_id=delivery_id,
-            source=source,
-            payload=payload,
-            type=event_type,
-            occurred_at=occurred_at,
-        )
-        .on_conflict_do_nothing(index_elements=["delivery_id", "source"])
-        .returning(EventLog.id)
-    )
-
-    session = get_session()
-    new_id = session.scalar(statement)
-
-    session.commit()
-    return new_id

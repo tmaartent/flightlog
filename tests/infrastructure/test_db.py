@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy import Engine, QueuePool
 
-from flightlog.db import get_session
+from flightlog.infrastructure.db import get_session
 
 
 def test_engine_uses_the_configured_database_url(app):
