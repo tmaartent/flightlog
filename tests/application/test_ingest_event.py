@@ -3,6 +3,7 @@
 import datetime
 
 from flightlog.application.ingest import ingest_event
+from flightlog.application.jobs import JobKind
 from flightlog.contracts.ingest import IngestEvent, IngestOutcome
 from flightlog.domain import RecordedEvent
 
@@ -28,9 +29,21 @@ class FakeEventStore:
         return event.id
 
 
+class FakeJobQueue:
+    def __init__(self) -> None:
+        self.enqueued: list[tuple[int, JobKind]] = []
+
+    def enqueue(self, event_id: int, kind: JobKind) -> None:
+        self.enqueued.append((event_id, kind))
+
+    def claim_next(self):
+        raise NotImplementedError  # not used by ingest
+
+
 class FakeUnitOfWork:
     def __init__(self) -> None:
         self.events = FakeEventStore()
+        self.jobs = FakeJobQueue()
         self.commits = 0
 
     def commit(self) -> None:
@@ -67,3 +80,20 @@ def test_the_same_delivery_twice_is_a_duplicate():
     assert result.outcome is IngestOutcome.DUPLICATE
     assert result.event_id is None
     assert len(uow.events.events) == 1
+
+
+def test_a_new_event_is_queued_for_the_worker():
+    uow = FakeUnitOfWork()
+
+    result = ingest_event(COMMAND, uow)
+
+    assert uow.jobs.enqueued == [(result.event_id, JobKind.APPLY_TO_SESSION)]
+
+
+def test_a_duplicate_is_not_queued_again():
+    uow = FakeUnitOfWork()
+    ingest_event(COMMAND, uow)
+
+    ingest_event(COMMAND, uow)
+
+    assert len(uow.jobs.enqueued) == 1

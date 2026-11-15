@@ -4,12 +4,16 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum,
+    ForeignKey,
+    Index,
     Integer,
     MetaData,
     String,
     Table,
+    Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -61,5 +65,24 @@ event_logs = Table(
     Column("received_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
     Column("payload", JSONB, nullable=False),
     Column("processed_at", DateTime(timezone=True), nullable=True),
+    # Set by the worker once the event is applied; until then the event has no session.
+    Column("agent_session_id", Integer, ForeignKey("agent_sessions.id"), nullable=True),
     UniqueConstraint("source", "delivery_id"),
+)
+
+# The work queue (ADR-0008): one row per job still to do. A finished job is deleted, so a row's
+# existence means "pending"; failed_at marks a job that was given up on.
+event_jobs = Table(
+    "event_jobs",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("event_log_id", Integer, ForeignKey("event_logs.id"), nullable=False),
+    Column("kind", String(50), nullable=False),
+    Column("attempts", Integer, server_default=text("0"), nullable=False),
+    Column("available_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    Column("last_error", Text, nullable=True),
+    Column("failed_at", DateTime(timezone=True), nullable=True),
+    Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    UniqueConstraint("event_log_id", "kind"),
+    Index("ix_event_jobs_available_at", "available_at"),
 )

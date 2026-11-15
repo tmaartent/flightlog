@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from flightlog.api.ingest import extract_event_timestamp
 from flightlog.domain import RecordedEvent
+from flightlog.infrastructure.tables import event_jobs
 from tests.util import make_signature
 
 PAYLOAD = {"action": "opened", "pull_request": {"updated_at": "2026-11-13T21:15:30Z"}}
@@ -70,6 +71,15 @@ def test_the_same_delivery_twice_is_stored_once(client, db_session):
     assert second.status_code == 202
     assert second.get_json() == {"status": "duplicate"}
     assert stored_events(db_session) == 1
+
+
+@pytest.mark.db
+def test_a_stored_delivery_is_queued_once_for_the_worker(client, db_session):
+    post_delivery(client)
+    post_delivery(client)  # redelivery: no second job
+
+    jobs = db_session.execute(select(event_jobs.c.kind)).scalars().all()
+    assert jobs == ["apply_to_session"]
 
 
 @pytest.mark.db
