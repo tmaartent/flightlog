@@ -6,7 +6,7 @@ from flightlog_hook import build_request
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from flightlog.models import EventLog
+from flightlog.domain import RecordedEvent
 from tests.util import make_signature
 
 NOW = datetime.datetime(2026, 11, 14, 10, 15, 30, 123456, tzinfo=datetime.UTC)
@@ -35,7 +35,7 @@ def post_envelope(client, body: bytes, signature: str | None = None):
 
 
 def stored_events(session: Session) -> int:
-    return session.scalar(select(func.count()).select_from(EventLog))
+    return session.scalar(select(func.count()).select_from(RecordedEvent))
 
 
 @pytest.mark.db
@@ -48,7 +48,7 @@ def test_a_request_built_by_the_hook_client_is_accepted_and_stored(client, db_se
 
     assert response.status_code == 202
     assert response.get_json() == {"status": "created"}
-    event = db_session.scalars(select(EventLog)).one()
+    event = db_session.scalars(select(RecordedEvent)).one()
     assert event.source == "claude"
     assert event.delivery_id == "delivery-001"
     assert event.type == "PostToolUse"

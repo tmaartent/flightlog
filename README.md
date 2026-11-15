@@ -18,6 +18,7 @@ GitHub webhooks (pull_request, push) ─────────────┴�
 ## What it shows
 
 - **Webhook handling done properly:** signature verification, store-then-acknowledge, idempotency on delivery ids, events that arrive out of order or twice.
+- **A layered design:** a framework-free domain, use cases behind ports, SQLAlchemy mapped imperatively onto the domain, and layer rules enforced in CI.
 - **Flask** with an app factory and blueprints, **SQLAlchemy 2** and hand-reviewed **Alembic** migrations on **PostgreSQL**.
 - **A small, secure read API:** an API key per connector (stored hashed), rate limiting, an audit log.
 - **Playwright** for end-to-end tests and for rendering the report to PDF with headless Chromium.

@@ -1,18 +1,15 @@
-from flask import Blueprint
+from flask import Blueprint, current_app
 from flask.typing import ResponseReturnValue
-from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
 
-from .db import get_session
+from flightlog.application.ports import DatabaseProbe
 
 bp = Blueprint("health", __name__, url_prefix="/health")
 
 
 @bp.route("")
 def health() -> ResponseReturnValue:
-    try:
-        get_session().execute(text("SELECT 1"))
-    except OperationalError:
+    database_is_reachable: DatabaseProbe = current_app.extensions["database_probe"]
+    if not database_is_reachable():
         return {"status": "degraded", "db": "down"}, 503
 
     return {"status": "ok", "db": "ok"}, 200
