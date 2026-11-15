@@ -5,7 +5,7 @@ import datetime
 from flightlog.application.ingest import ingest_event
 from flightlog.application.jobs import JobKind
 from flightlog.contracts.ingest import IngestEvent, IngestOutcome
-from flightlog.domain import RecordedEvent
+from tests.application.fakes import FakeUnitOfWork
 
 COMMAND = IngestEvent(
     source="github",
@@ -14,43 +14,6 @@ COMMAND = IngestEvent(
     occurred_at=datetime.datetime(2026, 11, 15, 10, 0, tzinfo=datetime.UTC),
     payload={"action": "opened"},
 )
-
-
-class FakeEventStore:
-    def __init__(self) -> None:
-        self.events: dict[tuple[str, str], RecordedEvent] = {}
-
-    def add_if_new(self, event: RecordedEvent) -> int | None:
-        key = (event.source, event.delivery_id)
-        if key in self.events:
-            return None
-        event.id = len(self.events) + 1
-        self.events[key] = event
-        return event.id
-
-
-class FakeJobQueue:
-    def __init__(self) -> None:
-        self.enqueued: list[tuple[int, JobKind]] = []
-
-    def enqueue(self, event_id: int, kind: JobKind) -> None:
-        self.enqueued.append((event_id, kind))
-
-    def claim_next(self):
-        raise NotImplementedError  # not used by ingest
-
-
-class FakeUnitOfWork:
-    def __init__(self) -> None:
-        self.events = FakeEventStore()
-        self.jobs = FakeJobQueue()
-        self.commits = 0
-
-    def commit(self) -> None:
-        self.commits += 1
-
-    def rollback(self) -> None:
-        pass
 
 
 def test_a_new_event_is_recorded_and_committed():

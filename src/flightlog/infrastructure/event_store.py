@@ -29,3 +29,6 @@ class SqlEventStore:
         if event_id is not None:
             event.id = event_id
         return event_id
+
+    def get(self, event_id: int) -> RecordedEvent | None:
+        return self._session.get(RecordedEvent, event_id)

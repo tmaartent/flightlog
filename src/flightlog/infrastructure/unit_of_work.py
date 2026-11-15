@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from flightlog.infrastructure.db import get_session
 from flightlog.infrastructure.event_store import SqlEventStore
 from flightlog.infrastructure.job_queue import SqlJobQueue
+from flightlog.infrastructure.session_repository import SqlSessionRepository
 
 
 class SqlUnitOfWork:
@@ -12,6 +13,7 @@ class SqlUnitOfWork:
         self._session = session
         self.events = SqlEventStore(session)
         self.jobs = SqlJobQueue(session)
+        self.sessions = SqlSessionRepository(session)
 
     def commit(self) -> None:
         self._session.commit()
