@@ -28,14 +28,14 @@ Tasks
 3. Store the raw event with a **unique constraint on (source, delivery_id)**; a duplicate returns 200 without a second row. GitHub's delivery id is `X-GitHub-Delivery`; the hook client sends a UUID it generates.
 4. Return **202** right after storing. No processing in the request.
 5. `scripts/flightlog_hook.py`: reads the hook JSON from stdin, signs it, POSTs it, never blocks the agent (short timeout, always exit 0). Wire it into `.claude/settings.json` for `SessionStart`, `PostToolUse` and `Stop`. Check the hook input format in the Claude Code docs for your installed version.
-6. A worker (`flask --app flightlog worker`, a click command) that claims unprocessed events with `SELECT … FOR UPDATE SKIP LOCKED`, applies them to `AgentSession`, and marks them processed.
+6. A worker (`flask --app flightlog worker`, a click command, `--once` for tests) that claims queued jobs with `SELECT … FOR UPDATE SKIP LOCKED`, applies their event to `AgentSession`, and deletes the job ([ADR-0008](adr/0008-job-table-deleted-on-success.md)).
 
 Done when
-- [ ] Bad or missing signature → 401, nothing stored
-- [ ] The same delivery twice → one row, both requests succeed
-- [ ] `Stop` processed before the last `PostToolUse` → the session still ends as `stopped` with all its tool calls
-- [ ] Two workers running at once never process the same event twice (an integration test with two connections)
-- [ ] A failing event is retried with backoff, and after N attempts marked `failed` with the error
+- [x] Bad or missing signature → 401, nothing stored
+- [x] The same delivery twice → one row, both requests succeed
+- [x] `SessionEnd` processed before earlier events → the session still ends as `stopped`, starting at its first event
+- [x] Two workers running at once never claim the same job (an integration test with two connections)
+- [x] A failing job is retried with backoff, and after 5 attempts marked failed with the error
 
 ## M3 · Link and show
 
@@ -68,7 +68,33 @@ Done when
 - [ ] The report PDF exists and has one page per repo
 - [ ] `docker compose up` runs the whole stack; CI is green
 
+## M5 · Agent in the loop
+
+Goal: a new agent session starts with a short history of what was tried before, instead of from scratch. Flightlog keeps humans in the loop; this keeps the agent in the loop too, without polluting its context.
+
+The value is in the summaries, not the protocol: an MCP server that passes raw events through adds noise instead of preventing it. So summaries come first, a CLI second, MCP last.
+
+Tasks
+1. A summary per session, as structured data: goal, files touched, test runs, outcome (PR merged, reverted, none). Optionally a short text from the Claude API as structured output. Stored, so it's computed once.
+2. `flask --app flightlog sessions --repo <name> --last 5`: a compact summary any agent can already call through its shell, with no extra server.
+3. A read-only MCP server as another adapter in the `api` layer, calling the same application queries as the read API (M4). Three tools, no more:
+    - `recent_sessions(repo)`: date, goal, files touched, outcome
+    - `attempts_on(path)`: earlier sessions that touched this file, and what came of them
+    - `session_summary(id)`: the stored summary of one session
+
+Rules
+- **Structured output only** (counts, paths, outcomes, ids). Never raw transcript or tool text: old sessions contain content from web pages and files, and feeding that back would bring injected instructions back with it.
+- **Filter its own events:** calls to `mcp__flightlog__*` trigger `PostToolUse` hooks; don't record them, or Flightlog logs itself.
+- **Read-only and local.** Tool inputs can contain secrets; summaries leave them out.
+- Small answers: a tool result fits on one screen.
+
+Done when
+- [ ] Every finished session has a stored summary; a test checks it holds no raw tool input
+- [ ] `sessions --last 5` prints at most a screenful
+- [ ] A new Claude Code session can call `recent_sessions` and gets structured data back
+- [ ] Calls to the Flightlog MCP tools don't show up as events in Flightlog
+- [ ] The MCP server imports nothing from `infrastructure` (import-linter)
+
 ## Later (only if there's time)
 
-- A short summary per session from the Claude API: what the session tried and whether it worked, as structured output.
 - Alerts when an agent edits files you marked as sensitive.

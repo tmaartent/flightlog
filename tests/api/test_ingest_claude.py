@@ -1,4 +1,3 @@
-import datetime
 import json
 
 import pytest
@@ -7,31 +6,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from flightlog.domain import RecordedEvent
+from tests.claude_util import HOOK, NOW, envelope, post_envelope
 from tests.util import make_signature
-
-NOW = datetime.datetime(2026, 11, 14, 10, 15, 30, 123456, tzinfo=datetime.UTC)
-HOOK = {
-    "session_id": "session-1",
-    "hook_event_name": "PostToolUse",
-    "cwd": "/work/flightlog",
-    "tool_name": "Bash",
-    "tool_input": {"command": "pytest"},
-}
-
-
-def envelope(**overrides) -> dict:
-    return {"delivery_id": "delivery-001", "occurred_at": NOW.isoformat(), "hook": HOOK} | overrides
-
-
-def post_envelope(client, body: bytes, signature: str | None = None):
-    secret = client.application.config["CLAUDE_HOOK_SECRET"]
-    signature = make_signature(body, secret) if signature is None else signature
-    return client.post(
-        "/ingest/claude",
-        data=body,
-        content_type="application/json",
-        headers={"X-Flightlog-Signature": signature},
-    )
 
 
 def stored_events(session: Session) -> int:
@@ -58,7 +34,7 @@ def test_a_request_built_by_the_hook_client_is_accepted_and_stored(client, db_se
 
 @pytest.mark.db
 def test_the_same_delivery_twice_is_stored_once(client, db_session):
-    body = json.dumps(envelope()).encode()
+    body = json.dumps(envelope(HOOK)).encode()
 
     post_envelope(client, body)
     second = post_envelope(client, body)

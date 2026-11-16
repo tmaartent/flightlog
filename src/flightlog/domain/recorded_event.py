@@ -17,4 +17,5 @@ class RecordedEvent:
     occurred_at: datetime.datetime  # from the event itself; decides the order
     payload: dict[str, Any]
     processed_at: datetime.datetime | None = None
+    agent_session_id: int | None = None  # set when applied to a session
     id: int | None = None  # assigned by persistence
