@@ -1,4 +1,6 @@
-from typing import Protocol
+import datetime
+from types import TracebackType
+from typing import Protocol, Self
 
 from flightlog.application.jobs import Job, JobKind
 from flightlog.domain import AgentSession, RecordedEvent
@@ -33,6 +35,18 @@ class JobQueue(Protocol):
         """Lock the next due job for this transaction, skipping jobs other workers hold."""
         ...
 
+    def complete(self, job: Job) -> None:
+        """Delete the job: its work is done and committed with it (ADR-0008)."""
+        ...
+
+    def retry_later(self, job: Job, error: str, delay: datetime.timedelta) -> None:
+        """Count the attempt and make the job due again after `delay`, on the database clock."""
+        ...
+
+    def give_up(self, job: Job, error: str) -> None:
+        """Count the attempt and mark the job failed; it stays visible for a manual retry."""
+        ...
+
 
 class UnitOfWork(Protocol):
     """One transaction. Everything a use case changes is committed together, or not at all."""
@@ -44,6 +58,15 @@ class UnitOfWork(Protocol):
     def commit(self) -> None: ...
 
     def rollback(self) -> None: ...
+
+    def __enter__(self) -> Self: ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None: ...
 
 
 class DatabaseProbe(Protocol):

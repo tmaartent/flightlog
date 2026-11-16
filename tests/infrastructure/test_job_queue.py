@@ -1,7 +1,7 @@
 import datetime
 
 import pytest
-from sqlalchemy import Engine, text, update
+from sqlalchemy import Engine, select, text, update
 from sqlalchemy.orm import Session
 
 from flightlog.application.jobs import JobKind
@@ -104,3 +104,47 @@ def test_a_worker_sees_its_own_claimed_job_again_until_it_completes_it(committed
         assert again is not None and first is not None
         assert again.id == first.id
         worker.rollback()
+
+
+def job_row(session: Session, job_id: int):
+    return session.execute(select(event_jobs).where(event_jobs.c.id == job_id)).one_or_none()
+
+
+@pytest.mark.db
+def test_a_completed_job_is_deleted(db_session):
+    queue_event(db_session, "d1")
+    queue = SqlJobQueue(db_session)
+    job = queue.claim_next()
+
+    queue.complete(job)
+
+    assert job_row(db_session, job.id) is None
+
+
+@pytest.mark.db
+def test_a_job_retried_later_counts_the_attempt_and_is_not_due_yet(db_session):
+    queue_event(db_session, "d1")
+    queue = SqlJobQueue(db_session)
+    job = queue.claim_next()
+
+    queue.retry_later(job, "ValueError: boom", datetime.timedelta(minutes=1))
+
+    row = job_row(db_session, job.id)
+    assert row.attempts == 1
+    assert row.last_error == "ValueError: boom"
+    assert row.failed_at is None
+    assert queue.claim_next() is None  # due again in a minute, not now
+
+
+@pytest.mark.db
+def test_a_job_given_up_on_is_marked_failed_and_never_claimed_again(db_session):
+    queue_event(db_session, "d1")
+    queue = SqlJobQueue(db_session)
+    job = queue.claim_next()
+
+    queue.give_up(job, "ValueError: boom")
+
+    row = job_row(db_session, job.id)
+    assert row.attempts == 1
+    assert row.failed_at is not None
+    assert queue.claim_next() is None

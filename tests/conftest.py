@@ -1,4 +1,5 @@
 import os
+import signal
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -169,3 +170,11 @@ def migrations_cfg(migrations_engine: Engine) -> Config:
     url = migrations_engine.url.render_as_string(hide_password=False)
     cfg.set_main_option("sqlalchemy.url", url.replace("%", "%%"))  # ini files treat % specially
     return cfg
+
+
+@pytest.fixture
+def restore_signal_handlers():
+    saved = {s: signal.getsignal(s) for s in (signal.SIGINT, signal.SIGTERM)}
+    yield
+    for s, handler in saved.items():
+        signal.signal(s, handler)

@@ -1,4 +1,6 @@
-from sqlalchemy import func, insert, select
+import datetime
+
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.orm import Session
 
 from flightlog.application.jobs import Job, JobKind
@@ -13,6 +15,28 @@ class SqlJobQueue:
 
     def enqueue(self, event_id: int, kind: JobKind) -> None:
         self._session.execute(insert(event_jobs).values(event_log_id=event_id, kind=kind.value))
+
+    def retry_later(self, job: Job, error: str, delay: datetime.timedelta) -> None:
+        self._session.execute(
+            update(event_jobs)
+            .where(event_jobs.c.id == job.id)
+            .values(
+                attempts=job.attempts + 1,
+                last_error=error,
+                available_at=func.now() + delay,
+            )
+        )
+
+    def give_up(self, job: Job, error: str) -> None:
+        self._session.execute(
+            update(event_jobs)
+            .where(event_jobs.c.id == job.id)
+            .values(
+                attempts=job.attempts + 1,
+                last_error=error,
+                failed_at=func.now(),
+            )
+        )
 
     def claim_next(self) -> Job | None:
         # SQL expressions, not Python: `column is None` would be evaluated by Python (always
@@ -32,3 +56,6 @@ class SqlJobQueue:
         return Job(
             id=row.id, event_id=row.event_log_id, kind=JobKind(row.kind), attempts=row.attempts
         )
+
+    def complete(self, job: Job) -> None:
+        self._session.execute(delete(event_jobs).where(event_jobs.c.id == job.id))

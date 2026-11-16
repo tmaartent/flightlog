@@ -1,6 +1,10 @@
 """In-memory stand-ins for the ports, so use cases can be tested without a database."""
 
-from flightlog.application.jobs import JobKind
+import datetime
+from types import TracebackType
+from typing import Self
+
+from flightlog.application.jobs import Job, JobKind
 from flightlog.domain import AgentSession, RecordedEvent
 
 
@@ -22,13 +26,29 @@ class FakeEventStore:
 
 class FakeJobQueue:
     def __init__(self) -> None:
-        self.enqueued: list[tuple[int, JobKind]] = []
+        self.enqueued: list[Job] = []
+        self.latest_error: str | None = None
+        self.delay: datetime.timedelta | None = None
+        self.given_up: bool = False
 
-    def enqueue(self, event_id: int, kind: JobKind) -> None:
-        self.enqueued.append((event_id, kind))
+    def enqueue(self, event_id: int, kind: JobKind, attempts: int = 0) -> None:
+        self.enqueued.append(Job(len(self.enqueued) + 1, event_id, kind, attempts))
 
-    def claim_next(self):
-        raise NotImplementedError  # the use cases don't claim; the worker does
+    def claim_next(self) -> Job | None:
+        if len(self.enqueued) == 0:
+            return None
+        return self.enqueued[0]
+
+    def retry_later(self, job: Job, error: str, delay: datetime.timedelta) -> None:
+        self.latest_error = error
+        self.delay = delay
+
+    def give_up(self, job: Job, error: str) -> None:
+        self.latest_error = error
+        self.given_up = True
+
+    def complete(self, job: Job) -> None:
+        self.enqueued.remove(job)
 
 
 class FakeSessionRepository:
@@ -49,9 +69,21 @@ class FakeUnitOfWork:
         self.jobs = FakeJobQueue()
         self.sessions = FakeSessionRepository()
         self.commits = 0
+        self.rollbacks = 0
 
     def commit(self) -> None:
         self.commits += 1
 
     def rollback(self) -> None:
+        self.rollbacks += 1
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         pass

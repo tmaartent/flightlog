@@ -14,9 +14,11 @@ ADR-0003 made the event table the queue. That mixes facts (what happened) with p
 - **Due** = `failed_at IS NULL AND available_at <= now()`, using the database's clock. A plain index on `available_at` is enough: finished jobs are gone, so there is no mass of done rows to leave out with a partial index.
 - **Claiming:** `FOR UPDATE SKIP LOCKED`, **one job per transaction**: claim, apply, delete, commit. `SKIP LOCKED` only skips rows locked by *other* transactions, so a worker that claims twice in one transaction gets its own job back.
 - **On error:** roll back, then record the failure (`attempts`, `last_error`, `available_at` = now + backoff, or `failed_at` after the last attempt) in a separate transaction.
+- **Retry policy** lives in the application layer (`retry_delay`: 10 s × 2^(attempt−1), give up after 5); the queue only writes it, with `available_at = now() + delay` on the database's clock.
 - **At-least-once:** a job can run twice (a crash after applying, before the commit), so every job handler is idempotent.
 
 ## Consequences
 - `event_logs` stays an append-only record; adding a kind of work never touches it.
 - A busy queue table with many deletes creates dead tuples; autovacuum handles that at this volume.
+- Between the rollback and recording the failure, the row lock is released, so another worker can claim the job first. Harmless under at-least-once: the attempt may be counted late, never lost.
 - Not covered yet: a job that crashes the worker process itself never gets its attempt recorded, because that update rolls back too. The remedy, recording the attempt in its own transaction before processing (a lease), is noted for higher volumes.

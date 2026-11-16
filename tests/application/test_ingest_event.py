@@ -50,7 +50,8 @@ def test_a_new_event_is_queued_for_the_worker():
 
     result = ingest_event(COMMAND, uow)
 
-    assert uow.jobs.enqueued == [(result.event_id, JobKind.APPLY_TO_SESSION)]
+    (job,) = uow.jobs.enqueued
+    assert (job.event_id, job.kind) == (result.event_id, JobKind.APPLY_TO_SESSION)
 
 
 def test_a_duplicate_is_not_queued_again():

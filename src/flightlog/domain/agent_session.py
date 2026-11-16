@@ -32,7 +32,7 @@ class AgentSession:
             raise ValueError("occurred_at must be timezone-aware")
         if occurred_at < self.started_at:
             self.started_at = occurred_at
-        if event_type == "SessionEnd":
+        if event_type == SESSION_END:
             if self.ended_at is None or occurred_at > self.ended_at:
                 self.ended_at = occurred_at
             if self.status == AgentSessionStatus.ACTIVE:

@@ -60,8 +60,8 @@ def test_status_only_moves_forward():
     session.record(SESSION_END, later)
     assert session.status == AgentSessionStatus.STOPPED
 
-    session.record("PostToolUse", even_later)
-    assert session.ended_at == even_later
+    session.record("PostToolUse", even_later)  # a late event does not reopen it
+    assert session.ended_at == later  # and only SessionEnd moves the end
     assert session.status == AgentSessionStatus.STOPPED
 
 

@@ -28,14 +28,14 @@ Tasks
 3. Store the raw event with a **unique constraint on (source, delivery_id)**; a duplicate returns 200 without a second row. GitHub's delivery id is `X-GitHub-Delivery`; the hook client sends a UUID it generates.
 4. Return **202** right after storing. No processing in the request.
 5. `scripts/flightlog_hook.py`: reads the hook JSON from stdin, signs it, POSTs it, never blocks the agent (short timeout, always exit 0). Wire it into `.claude/settings.json` for `SessionStart`, `PostToolUse` and `Stop`. Check the hook input format in the Claude Code docs for your installed version.
-6. A worker (`flask --app flightlog worker`, a click command) that claims unprocessed events with `SELECT … FOR UPDATE SKIP LOCKED`, applies them to `AgentSession`, and marks them processed.
+6. A worker (`flask --app flightlog worker`, a click command, `--once` for tests) that claims queued jobs with `SELECT … FOR UPDATE SKIP LOCKED`, applies their event to `AgentSession`, and deletes the job ([ADR-0008](adr/0008-job-table-deleted-on-success.md)).
 
 Done when
-- [ ] Bad or missing signature → 401, nothing stored
-- [ ] The same delivery twice → one row, both requests succeed
-- [ ] `Stop` processed before the last `PostToolUse` → the session still ends as `stopped` with all its tool calls
-- [ ] Two workers running at once never process the same event twice (an integration test with two connections)
-- [ ] A failing event is retried with backoff, and after N attempts marked `failed` with the error
+- [x] Bad or missing signature → 401, nothing stored
+- [x] The same delivery twice → one row, both requests succeed
+- [x] `SessionEnd` processed before earlier events → the session still ends as `stopped`, starting at its first event
+- [x] Two workers running at once never claim the same job (an integration test with two connections)
+- [x] A failing job is retried with backoff, and after 5 attempts marked failed with the error
 
 ## M3 · Link and show
 
