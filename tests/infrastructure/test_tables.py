@@ -4,12 +4,13 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from flightlog.contracts.ingest import GITHUB
 from flightlog.domain import AgentSession, RecordedEvent
 
 
 def test_inserting_event_log_twice_throws_integrity_error(db_session: Session):
     event = RecordedEvent(
-        source="github",
+        source=GITHUB,
         delivery_id="1234",
         type="pull_request",
         occurred_at=datetime.now(UTC),
@@ -22,7 +23,7 @@ def test_inserting_event_log_twice_throws_integrity_error(db_session: Session):
     db_session.commit()
 
     event2 = RecordedEvent(
-        source="github",
+        source=GITHUB,
         delivery_id="1234",
         type="pull_request",
         occurred_at=datetime.now(UTC),
@@ -41,7 +42,7 @@ def test_inserting_event_log_twice_throws_integrity_error(db_session: Session):
 
 def test_inserting_agent_session_twice_throws_integrity_error(db_session: Session):
     session = AgentSession(
-        source="github",
+        source=GITHUB,
         external_id="1234",
         repo="repo",
         branch="branch",
@@ -52,7 +53,7 @@ def test_inserting_agent_session_twice_throws_integrity_error(db_session: Sessio
     db_session.commit()
 
     session2 = AgentSession(
-        source="github",
+        source=GITHUB,
         external_id="1234",
         repo="repo",
         branch="branch",

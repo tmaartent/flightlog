@@ -6,8 +6,8 @@ and leaving it out of the constructor means the INSERT omits it, so the server d
 
 from sqlalchemy.orm import registry
 
-from flightlog.domain import AgentSession, RecordedEvent
-from flightlog.infrastructure.tables import agent_sessions, event_logs, metadata
+from flightlog.domain import AgentSession, PullRequest, RecordedEvent
+from flightlog.infrastructure.tables import agent_sessions, event_logs, metadata, pull_requests
 
 mapper_registry = registry(metadata=metadata)
 _started = False
@@ -20,4 +20,5 @@ def start_mappers() -> None:
         return
     mapper_registry.map_imperatively(AgentSession, agent_sessions)
     mapper_registry.map_imperatively(RecordedEvent, event_logs)
+    mapper_registry.map_imperatively(PullRequest, pull_requests)
     _started = True

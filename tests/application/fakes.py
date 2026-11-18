@@ -5,10 +5,10 @@ from types import TracebackType
 from typing import Self
 
 from flightlog.application.jobs import Job, JobKind
-from flightlog.domain import AgentSession, RecordedEvent
+from flightlog.domain import AgentSession, PullRequest, RecordedEvent
 
 
-class FakeEventStore:
+class FakeEventLog:
     def __init__(self) -> None:
         self.events: dict[tuple[str, str], RecordedEvent] = {}
 
@@ -51,7 +51,7 @@ class FakeJobQueue:
         self.enqueued.remove(job)
 
 
-class FakeSessionRepository:
+class FakeAgentSessionRepository:
     def __init__(self) -> None:
         self.sessions: dict[tuple[str, str], AgentSession] = {}
 
@@ -63,11 +63,24 @@ class FakeSessionRepository:
         self.sessions[(session.source, session.external_id)] = session
 
 
+class FakePullRequestRepository:
+    def __init__(self) -> None:
+        self.pull_requests: dict[tuple[str, int], PullRequest] = {}
+
+    def get(self, repo: str, number: int) -> PullRequest | None:
+        return self.pull_requests.get((repo, number))
+
+    def add(self, pull_request: PullRequest) -> None:
+        pull_request.id = len(self.pull_requests) + 1
+        self.pull_requests[(pull_request.repo, pull_request.number)] = pull_request
+
+
 class FakeUnitOfWork:
     def __init__(self) -> None:
-        self.events = FakeEventStore()
+        self.events = FakeEventLog()
         self.jobs = FakeJobQueue()
-        self.sessions = FakeSessionRepository()
+        self.agent_sessions = FakeAgentSessionRepository()
+        self.pull_requests = FakePullRequestRepository()
         self.commits = 0
         self.rollbacks = 0
 

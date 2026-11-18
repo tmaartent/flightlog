@@ -5,6 +5,7 @@ import datetime
 import pytest
 
 from flightlog.application.apply_to_session import apply_to_session
+from flightlog.contracts.ingest import CLAUDE
 from flightlog.domain import AgentSessionStatus, RecordedEvent
 from flightlog.infrastructure.unit_of_work import SqlUnitOfWork
 
@@ -13,7 +14,7 @@ T0 = datetime.datetime(2026, 11, 15, 10, 0, tzinfo=datetime.UTC)
 
 def store(uow: SqlUnitOfWork, type_: str, at: datetime.datetime) -> int:
     event = RecordedEvent(
-        source="claude",
+        source=CLAUDE,
         delivery_id=type_,
         type=type_,
         occurred_at=at,
@@ -33,7 +34,7 @@ def test_a_session_is_created_and_updated_in_the_database(db_session):
     uow.commit()
     db_session.expunge_all()  # read back from the database, not from the identity map
 
-    session = uow.sessions.get("claude", "s-1")
+    session = uow.agent_sessions.get(CLAUDE, "s-1")
     assert session is not None
     assert session.repo == "flightlog"
     assert session.started_at == T0

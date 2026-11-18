@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 from flightlog.domain import AgentSession
 
 
-class SqlSessionRepository:
-    """SessionRepository on PostgreSQL. Loaded sessions are tracked, so changes save on commit."""
+class SqlAgentSessionRepository:
+    """AgentSessionRepository on PostgreSQL. Loaded sessions are tracked; changes save on commit."""
 
     def __init__(self, session: Session) -> None:
         self._session = session

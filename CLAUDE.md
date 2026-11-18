@@ -12,6 +12,20 @@ This is a **learning project**. The owner writes the production and test code to
 - **Verify library APIs against the installed version** (`pip show <pkg>`, the release docs) before suggesting a method. Flask 3.1, SQLAlchemy 2.1, Alembic 1.20, Flask-Limiter 4, Playwright 1.65.
 - **After each task**, write a short log in `docs/guide/log/NN-<task>.md`: what was built, what was learned, open questions. The owner may ask Claude to draft it from the diff.
 
+## Agent roles
+
+Subagents in `.claude/agents/`, each on the model that fits the work. The main session stays the mentor and delegates when a task is self-contained:
+
+| Agent | Model | Use for |
+|---|---|---|
+| `architect` | Opus | A design choice: options, recommendation, then the ADR. Writes only under `docs/`. |
+| `reviewer` | Opus | "Check my work": ranked findings with the why, verified, no fixes. |
+| `implementer` | Sonnet | Only when the owner hands work over ("you finish up"). Follows the agreed design. |
+| `checker` | Haiku | "Is everything green?": runs ruff, lint-imports, pytest, alembic check. |
+| `scribe` | Sonnet | The log in `docs/guide/log/` and the Flask-for-Django guide. |
+
+Questions and short explanations stay in the main session: a subagent starts cold, so it only pays off for a task that stands on its own.
+
 ## Project conventions
 
 - Plan and acceptance criteria: `docs/plan.md`. Decisions: `docs/adr/`.

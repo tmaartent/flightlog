@@ -4,10 +4,11 @@ from typing import Self
 from flask import current_app
 from sqlalchemy.orm import Session
 
+from flightlog.infrastructure.agent_session_repository import SqlAgentSessionRepository
 from flightlog.infrastructure.db import get_session
-from flightlog.infrastructure.event_store import SqlEventStore
+from flightlog.infrastructure.event_log import SqlEventLog
 from flightlog.infrastructure.job_queue import SqlJobQueue
-from flightlog.infrastructure.session_repository import SqlSessionRepository
+from flightlog.infrastructure.pull_request_repository import SqlPullRequestRepository
 
 
 class SqlUnitOfWork:
@@ -15,9 +16,10 @@ class SqlUnitOfWork:
 
     def __init__(self, session: Session) -> None:
         self._session = session
-        self.events = SqlEventStore(session)
+        self.events = SqlEventLog(session)
         self.jobs = SqlJobQueue(session)
-        self.sessions = SqlSessionRepository(session)
+        self.agent_sessions = SqlAgentSessionRepository(session)
+        self.pull_requests = SqlPullRequestRepository(session)
 
     def commit(self) -> None:
         self._session.commit()

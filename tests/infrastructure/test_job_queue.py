@@ -5,8 +5,9 @@ from sqlalchemy import Engine, select, text, update
 from sqlalchemy.orm import Session
 
 from flightlog.application.jobs import JobKind
+from flightlog.contracts.ingest import CLAUDE
 from flightlog.domain import RecordedEvent
-from flightlog.infrastructure.event_store import SqlEventStore
+from flightlog.infrastructure.event_log import SqlEventLog
 from flightlog.infrastructure.job_queue import SqlJobQueue
 from flightlog.infrastructure.tables import event_jobs
 
@@ -16,9 +17,9 @@ NOW = datetime.datetime(2026, 11, 15, 10, 0, tzinfo=datetime.UTC)
 def queue_event(session: Session, delivery_id: str) -> int:
     """Record an event and queue its job, as ingest does. Returns the event id."""
     event = RecordedEvent(
-        source="claude", delivery_id=delivery_id, type="PostToolUse", occurred_at=NOW, payload={}
+        source=CLAUDE, delivery_id=delivery_id, type="PostToolUse", occurred_at=NOW, payload={}
     )
-    event_id = SqlEventStore(session).add_if_new(event)
+    event_id = SqlEventLog(session).add_if_new(event)
     SqlJobQueue(session).enqueue(event_id, JobKind.APPLY_TO_SESSION)
     return event_id
 

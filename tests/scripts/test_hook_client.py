@@ -1,11 +1,13 @@
 import datetime
 import io
 import json
+import shutil
+import subprocess
 import urllib.error
 
 import flightlog_hook
 import pytest
-from flightlog_hook import build_request
+from flightlog_hook import build_request, current_branch
 
 from tests.util import make_signature
 
@@ -20,7 +22,14 @@ def test_the_envelope_carries_delivery_id_timestamp_and_the_hook_input():
         "delivery_id": "delivery-001",
         "occurred_at": "2026-11-14T10:15:30.123456+00:00",
         "hook": HOOK,
+        "git": {"branch": None},
     }
+
+
+def test_the_envelope_carries_the_branch():
+    body, _ = build_request("secret", NOW, "delivery-001", HOOK, branch="feat/link-prs")
+
+    assert json.loads(body)["git"] == {"branch": "feat/link-prs"}
 
 
 def test_the_body_is_signed_with_the_secret():
@@ -107,3 +116,75 @@ def test_main_only_talks_http(hook_env, monkeypatch):
     monkeypatch.setenv("FLIGHTLOG_URL", "file:///etc/passwd")
 
     assert hook_env(json.dumps(HOOK).encode()) == []
+
+
+GIT = shutil.which("git")
+
+
+def git(cwd, *args: str) -> None:
+    subprocess.run([GIT, *args], cwd=cwd, check=True, capture_output=True)
+
+
+@pytest.fixture
+def git_repo(tmp_path):
+    """A repository with one commit, on branch main."""
+    if GIT is None:
+        pytest.skip("git is not installed")
+    git(tmp_path, "init", "-b", "main")
+    git(
+        tmp_path,
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "--allow-empty",
+        "-m",
+        "initial",
+    )
+    return tmp_path
+
+
+def test_current_branch_is_the_checked_out_branch(git_repo):
+    git(git_repo, "switch", "-c", "feat/link-prs")
+
+    assert current_branch(git_repo) == "feat/link-prs"
+    assert current_branch(str(git_repo)) == "feat/link-prs"
+
+
+def test_current_branch_is_none_on_a_detached_head(git_repo):
+    git(git_repo, "switch", "--detach")
+
+    assert current_branch(git_repo) is None
+
+
+def test_current_branch_is_none_outside_a_repository(tmp_path):
+    assert current_branch(tmp_path) is None
+
+
+@pytest.mark.parametrize("cwd", ["", "   ", "/does/not/exist"])
+def test_current_branch_is_none_without_a_usable_folder(cwd):
+    assert current_branch(cwd) is None
+
+
+def test_current_branch_is_none_when_git_is_missing(git_repo, monkeypatch):
+    monkeypatch.setattr(flightlog_hook.shutil, "which", lambda name: None)
+
+    assert current_branch(git_repo) is None
+
+
+def test_current_branch_is_none_when_git_is_too_slow(git_repo, monkeypatch):
+    def slow(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd="git", timeout=1)
+
+    monkeypatch.setattr(flightlog_hook.subprocess, "run", slow)
+
+    assert current_branch(git_repo) is None
+
+
+def test_main_sends_the_branch_of_the_hook_cwd(hook_env, git_repo):
+    hook = {**HOOK, "cwd": str(git_repo)}
+
+    ((request, _),) = hook_env(json.dumps(hook).encode())
+
+    assert json.loads(request.data)["git"] == {"branch": "main"}

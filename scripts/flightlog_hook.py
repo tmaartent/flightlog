@@ -11,6 +11,8 @@ import hashlib
 import hmac
 import json
 import os
+import shutil
+import subprocess
 import sys
 import urllib.request
 import uuid
@@ -23,8 +25,38 @@ def make_signature(payload: bytes, secret: str) -> str:
     return f"sha256={digest}"
 
 
+def current_branch(cwd: str | os.PathLike[str]) -> str | None:
+    """The branch checked out in cwd, or None: no git, not a repo, detached HEAD, or too slow.
+
+    Never raises, and gives up after a second: the hook must not slow the agent down.
+    """
+    git = shutil.which("git")
+    if not git or not str(cwd).strip() or not os.path.isdir(cwd):
+        return None
+    try:
+        result = subprocess.run(
+            [git, "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=1,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    branch = result.stdout.strip()
+    # A detached HEAD prints "HEAD": there is no branch to link a pull request to.
+    if result.returncode != 0 or branch in ("", "HEAD"):
+        return None
+    return branch
+
+
 def build_request(
-    secret: str, now: datetime.datetime, delivery_id: str, hook: dict
+    secret: str,
+    now: datetime.datetime,
+    delivery_id: str,
+    hook: dict,
+    branch: str | None = None,
 ) -> tuple[bytes, dict[str, str]]:
     """The signed body and headers for one hook event. Pure, so tests can check it exactly.
 
@@ -38,6 +70,9 @@ def build_request(
             # the same second, and the order between them matters (ADR-0004).
             "occurred_at": now.isoformat(),
             "hook": hook,
+            # Not part of Claude Code's hook input: added here, so a session can be linked to
+            # the pull request opened from its branch (ADR-0009).
+            "git": {"branch": branch},
         }
     ).encode("utf-8")
 
@@ -66,8 +101,10 @@ def main() -> None:
             print("Hook input is not a JSON object", file=sys.stderr)
             return
 
+        cwd = hook.get("cwd")
+        branch = current_branch(cwd) if isinstance(cwd, str) else None
         payload, headers = build_request(
-            secret, datetime.datetime.now(datetime.UTC), str(uuid.uuid4()), hook
+            secret, datetime.datetime.now(datetime.UTC), str(uuid.uuid4()), hook, branch
         )
         url = f"{base_url.rstrip('/')}/ingest/claude"
         # S310: the scheme is checked above.
