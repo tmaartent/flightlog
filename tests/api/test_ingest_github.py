@@ -7,6 +7,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from flightlog.api.ingest import extract_event_timestamp
+from flightlog.application.jobs import JobKind
+from flightlog.contracts.ingest import GITHUB
 from flightlog.domain import RecordedEvent
 from flightlog.infrastructure.tables import event_jobs
 from tests.util import make_signature
@@ -54,7 +56,7 @@ def test_a_valid_delivery_is_stored_and_returns_202(client, db_session):
     assert response.get_json() == {"status": "created"}
 
     event = db_session.scalars(select(RecordedEvent)).one()
-    assert event.source == "github"
+    assert event.source == GITHUB
     assert event.delivery_id == "delivery-001"
     assert event.type == "pull_request"
     assert event.payload == PAYLOAD
@@ -79,7 +81,7 @@ def test_a_stored_delivery_is_queued_once_for_the_worker(client, db_session):
     post_delivery(client)  # redelivery: no second job
 
     jobs = db_session.execute(select(event_jobs.c.kind)).scalars().all()
-    assert jobs == ["apply_to_session"]
+    assert jobs == [JobKind.APPLY_PULL_REQUEST]
 
 
 @pytest.mark.db

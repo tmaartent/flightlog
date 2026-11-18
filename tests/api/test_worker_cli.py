@@ -9,9 +9,13 @@ import pytest
 from sqlalchemy import func, select
 
 from flightlog.api.worker import register_signals, run
+from flightlog.contracts.sessions import LinkedPullRequest, PullRequestOutcome
 from flightlog.domain import AgentSession, AgentSessionStatus
+from flightlog.infrastructure.agent_session_queries import SqlAgentSessionQueries
 from flightlog.infrastructure.tables import agent_sessions, event_jobs
 from tests.claude_util import envelope, post_envelope
+from tests.github_util import pull_request_payload
+from tests.util import make_signature
 
 T0 = datetime.datetime(2026, 11, 16, 10, 0, tzinfo=datetime.UTC)
 
@@ -93,3 +97,56 @@ def test_ctrl_c_and_sigterm_request_a_stop(signum, restore_signal_handlers):
     signal.raise_signal(signum)
 
     assert stop.is_set()
+
+
+@pytest.mark.db
+def test_a_session_and_its_reverted_pr_are_linked_end_to_end(client, runner, db_session):
+    """M3: hook events with a branch and GitHub deliveries, through ingest and the worker."""
+    hook = {"session_id": "session-1", "hook_event_name": "SessionStart", "cwd": "/work/flightlog"}
+    body = envelope(hook, T0, delivery_id="claude-1", git={"branch": "feat/x"})
+    post_envelope(client, json.dumps(body).encode())
+    merged_at = T0 + datetime.timedelta(hours=1)
+    post_github_delivery(client, pull_request_payload(number=7, branch="feat/x"))
+    post_github_delivery(
+        client,
+        pull_request_payload(number=7, state="closed", merged_at=merged_at, updated_at=merged_at),
+    )
+    post_github_delivery(
+        client,
+        pull_request_payload(
+            number=8,
+            branch="revert-7-feat/x",
+            body="Reverts tmaartent/flightlog#7",
+            state="closed",
+            merged_at=merged_at,
+            updated_at=merged_at,
+        ),
+    )
+    post_github_delivery(client, {"ref": "refs/heads/feat/x"}, event="push")  # recorded only
+
+    result = runner.invoke(args=["worker", "--once"])
+
+    assert result.exit_code == 0, result.output
+    assert db_session.scalar(select(func.count()).select_from(event_jobs)) == 0
+    session = db_session.scalars(select(AgentSession)).one()
+    assert session.branch == "feat/x"
+    assert SqlAgentSessionQueries(db_session).linked_pull_requests(session.id) == [
+        LinkedPullRequest(7, "Add x", PullRequestOutcome.REVERTED)
+    ]
+
+
+def post_github_delivery(client, payload: dict, event: str = "pull_request") -> None:
+    body = json.dumps(payload).encode()
+    response = client.post(
+        "/ingest/github",
+        data=body,
+        content_type="application/json",
+        headers={
+            "X-Hub-Signature-256": make_signature(
+                body, client.application.config["GITHUB_WEBHOOK_SECRET"]
+            ),
+            "X-GitHub-Event": event,
+            "X-GitHub-Delivery": str(uuid.uuid4()),
+        },
+    )
+    assert response.status_code == 202

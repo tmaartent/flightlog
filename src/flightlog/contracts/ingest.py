@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
+CLAUDE = "claude"
+GITHUB = "github"
+
 
 @dataclass(frozen=True)
 class IngestEvent:

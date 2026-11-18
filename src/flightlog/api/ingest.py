@@ -7,7 +7,7 @@ from flask.typing import ResponseReturnValue
 from flightlog.api.signatures import verify
 from flightlog.application.ingest import ingest_event
 from flightlog.application.ports import UnitOfWork
-from flightlog.contracts.ingest import IngestEvent, IngestResult
+from flightlog.contracts.ingest import CLAUDE, GITHUB, IngestEvent, IngestResult
 
 bp = Blueprint("ingest", __name__, url_prefix="/ingest")
 
@@ -28,12 +28,12 @@ def github() -> ResponseReturnValue:
     if not event_type:
         abort(400, "X-GitHub-Event header is required")
 
-    payload = request.get_json()  # invalid JSON → Flask answers 400 itself
+    payload = request.get_json()  # invalid JSON â†’ Flask answers 400 itself
     if not isinstance(payload, dict):
         abort(400, "Payload must be a JSON object")
 
     command = IngestEvent(
-        source="github",
+        source=GITHUB,
         delivery_id=delivery_id,
         type=event_type,
         occurred_at=extract_event_timestamp(event_type, payload),
@@ -52,7 +52,7 @@ def claude() -> ResponseReturnValue:
 
     # Everything below comes from the signed body (the envelope built by
     # scripts/flightlog_hook.py), never from unsigned headers.
-    envelope = request.get_json()  # invalid JSON → Flask answers 400 itself
+    envelope = request.get_json()  # invalid JSON â†’ Flask answers 400 itself
     if not isinstance(envelope, dict):
         abort(400, "Payload must be a JSON object")
 
@@ -70,7 +70,7 @@ def claude() -> ResponseReturnValue:
         abort(400, "hook.hook_event_name is required")
 
     command = IngestEvent(
-        source="claude",
+        source=CLAUDE,
         delivery_id=delivery_id,
         type=event_type,
         occurred_at=occurred_at,

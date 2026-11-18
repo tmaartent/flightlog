@@ -1,11 +1,12 @@
 import datetime
 
+from flightlog.application.events import unprocessed_event
 from flightlog.application.ports import UnitOfWork
 from flightlog.domain import AgentSession
 
 
 def apply_to_session(event_id: int, now: datetime.datetime, uow: UnitOfWork) -> None:
-    """Apply one recorded event to the agent session it belongs to, creating the session first.
+    """Apply one Claude Code hook event to its agent session, creating the session first.
 
     Does not commit: the worker owns the transaction, so the event, the session and the
     removal of the job are saved together (ADR-0008). Safe to run twice for the same event,
@@ -15,29 +16,26 @@ def apply_to_session(event_id: int, now: datetime.datetime, uow: UnitOfWork) -> 
     the unique constraint on (source, external_id) makes one of them fail, and its retry
     then finds the session.
     """
-    event = uow.events.get(event_id)
+    event = unprocessed_event(event_id, uow)
     if event is None:
-        raise LookupError(f"event {event_id} does not exist")
-    if event.processed_at is not None:
-        return  # already applied by an earlier attempt that committed
+        return
 
-    # GitHub events are linked to sessions in M3. Until then there is nothing to apply.
-    if event.source == "claude":
-        hook = event.payload.get("hook", {})
-        session_id = hook.get("session_id")
-        if session_id:
-            session = uow.sessions.get(event.source, session_id)
-            if session is None:
-                session = AgentSession(
-                    source=event.source,
-                    external_id=session_id,
-                    repo=repo_name(hook.get("cwd", "")),
-                    started_at=event.occurred_at,
-                )
-                uow.sessions.add(session)
-            session.record(event.type, event.occurred_at)
-            event.agent_session_id = session.id
-
+    hook = event.payload.get("hook", {})
+    session_id = hook.get("session_id")
+    if session_id:
+        session = uow.agent_sessions.get(event.source, session_id)
+        if session is None:
+            session = AgentSession(
+                source=event.source,
+                external_id=session_id,
+                repo=repo_name(hook.get("cwd", "")),
+                started_at=event.occurred_at,
+            )
+            uow.agent_sessions.add(session)
+        # Added by the hook client since M3; None for older events and outside a git repo.
+        branch = (event.payload.get("git") or {}).get("branch")
+        session.record(event.type, event.occurred_at, branch)
+        event.agent_session_id = session.id
     event.processed_at = now
 
 

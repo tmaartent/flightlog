@@ -42,7 +42,7 @@ Done when
 Goal: see what an agent did and what came of it.
 
 Tasks
-1. GitHub `pull_request` and `push` events: link a session to a PR through the branch name (the hook payload carries `cwd`; read the branch from it in the hook client).
+1. GitHub `pull_request` events: link a session to a PR through the branch name; the hook client reads the branch from `cwd`. Done: linked at read time, "reverted" derived from GitHub's revert PRs; `push` is recorded but not processed. See [ADR-0009](adr/0009-link-sessions-to-pull-requests-at-read-time.md).
 2. `dashboard` blueprint with Jinja templates: a session list (filter by repo, status) and a timeline per session: tool calls, files touched, test runs, the linked PR and its outcome.
 3. `failed` events visible on an admin page, with a "retry" button (POST, not GET).
 

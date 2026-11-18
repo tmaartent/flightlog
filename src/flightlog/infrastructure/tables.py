@@ -17,7 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
-from flightlog.domain import AgentSessionStatus
+from flightlog.domain import AgentSessionStatus, PullRequestState
 
 # Predictable constraint names, so later migrations can refer to them.
 metadata = MetaData(
@@ -50,6 +50,7 @@ agent_sessions = Table(
     ),
     Column("started_at", DateTime(timezone=True), nullable=False),
     Column("ended_at", DateTime(timezone=True), nullable=True),
+    Column("branch_seen_at", DateTime(timezone=True), nullable=True),
     UniqueConstraint("source", "external_id"),
 )
 
@@ -85,4 +86,32 @@ event_jobs = Table(
     Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
     UniqueConstraint("event_log_id", "kind"),
     Index("ix_event_jobs_available_at", "available_at"),
+)
+
+# The latest known state of each pull request. Linked to sessions at read time, on
+# (repo, branch); "reverted" is derived from another merged PR whose `reverts` points here.
+pull_requests = Table(
+    "pull_requests",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("repo", String, nullable=False),
+    Column("number", Integer, nullable=False),
+    Column("branch", String, nullable=False),
+    Column("title", String, nullable=False),
+    Column(
+        "state",
+        Enum(
+            PullRequestState,
+            native_enum=False,
+            values_callable=lambda e: [m.value for m in e],  # store "merged", not "MERGED"
+            length=20,
+        ),
+        nullable=False,
+    ),
+    Column("merged_at", DateTime(timezone=True), nullable=True),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    Column("reverts", Integer, nullable=True),
+    UniqueConstraint("repo", "number"),
+    Index("ix_pull_requests_repo_branch", "repo", "branch"),  # session -> its pull requests
+    Index("ix_pull_requests_repo_reverts", "repo", "reverts"),  # was this PR reverted?
 )

@@ -5,8 +5,8 @@ from flightlog.domain import RecordedEvent
 from flightlog.infrastructure.tables import event_logs
 
 
-class SqlEventStore:
-    """EventStore on PostgreSQL."""
+class SqlEventLog:
+    """EventLog on PostgreSQL."""
 
     def __init__(self, session: Session) -> None:
         self._session = session

@@ -3,10 +3,11 @@ from types import TracebackType
 from typing import Protocol, Self
 
 from flightlog.application.jobs import Job, JobKind
-from flightlog.domain import AgentSession, RecordedEvent
+from flightlog.contracts.sessions import LinkedPullRequest
+from flightlog.domain import AgentSession, PullRequest, RecordedEvent
 
 
-class EventStore(Protocol):
+class EventLog(Protocol):
     def add_if_new(self, event: RecordedEvent) -> int | None:
         """Store the event unless (source, delivery_id) exists. Returns the new id, or None."""
         ...
@@ -16,13 +17,23 @@ class EventStore(Protocol):
         ...
 
 
-class SessionRepository(Protocol):
+class AgentSessionRepository(Protocol):
     def get(self, source: str, external_id: str) -> AgentSession | None:
         """The session with this id in its source. Changes are saved on commit."""
         ...
 
     def add(self, session: AgentSession) -> None:
         """Store a new session. Assigns session.id straight away, so events can refer to it."""
+        ...
+
+
+class PullRequestRepository(Protocol):
+    def get(self, repo: str, number: int) -> PullRequest | None:
+        """The pull request with this number in the repo. Changes are saved on commit."""
+        ...
+
+    def add(self, pull_request: PullRequest) -> None:
+        """Store a new pull request."""
         ...
 
 
@@ -51,9 +62,10 @@ class JobQueue(Protocol):
 class UnitOfWork(Protocol):
     """One transaction. Everything a use case changes is committed together, or not at all."""
 
-    events: EventStore
+    events: EventLog
     jobs: JobQueue
-    sessions: SessionRepository
+    agent_sessions: AgentSessionRepository
+    pull_requests: PullRequestRepository
 
     def commit(self) -> None: ...
 
@@ -67,6 +79,14 @@ class UnitOfWork(Protocol):
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None: ...
+
+
+class AgentSessionQueries(Protocol):
+    """Read side: views for the dashboard and the API. No aggregates, nothing to commit."""
+
+    def linked_pull_requests(self, session_id: int) -> list[LinkedPullRequest]:
+        """The PRs opened from the session's branch in its repo, oldest first (ADR-0009)."""
+        ...
 
 
 class DatabaseProbe(Protocol):

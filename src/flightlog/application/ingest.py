@@ -1,4 +1,4 @@
-from flightlog.application.jobs import JobKind
+from flightlog.application.jobs import jobs_for
 from flightlog.application.ports import UnitOfWork
 from flightlog.contracts.ingest import IngestEvent, IngestOutcome, IngestResult
 from flightlog.domain import RecordedEvent
@@ -19,7 +19,8 @@ def ingest_event(command: IngestEvent, uow: UnitOfWork) -> IngestResult:
     )
     event_id = uow.events.add_if_new(event)
     if event_id is not None:
-        uow.jobs.enqueue(event_id, JobKind.APPLY_TO_SESSION)
+        for kind in jobs_for(event.source, event.type):
+            uow.jobs.enqueue(event_id, kind)
     uow.commit()
 
     if event_id is None:

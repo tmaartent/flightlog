@@ -5,6 +5,7 @@ from flightlog_hook import build_request
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from flightlog.contracts.ingest import CLAUDE
 from flightlog.domain import RecordedEvent
 from tests.claude_util import HOOK, NOW, envelope, post_envelope
 from tests.util import make_signature
@@ -25,7 +26,7 @@ def test_a_request_built_by_the_hook_client_is_accepted_and_stored(client, db_se
     assert response.status_code == 202
     assert response.get_json() == {"status": "created"}
     event = db_session.scalars(select(RecordedEvent)).one()
-    assert event.source == "claude"
+    assert event.source == CLAUDE
     assert event.delivery_id == "delivery-001"
     assert event.type == "PostToolUse"
     assert event.occurred_at == NOW  # microseconds kept: ordering within a second
