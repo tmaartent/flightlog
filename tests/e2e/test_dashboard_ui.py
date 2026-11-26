@@ -2,9 +2,12 @@
 
 import re
 
+import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e.flows import AgentSessionScript, at, post_pull_request, run_worker
+
+pytestmark = pytest.mark.usefixtures("logged_in")
 
 
 def session_rows(page: Page):

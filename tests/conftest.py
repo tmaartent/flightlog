@@ -49,6 +49,15 @@ def client(app):
 
 
 @pytest.fixture
+def admin_client(app):
+    """A test client that is logged in as the admin (ADR-0012)."""
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["admin"] = True
+    return client
+
+
+@pytest.fixture
 def runner(app):
     """Invokes `flask` CLI commands in-process; used later for `worker` and `report`."""
     return app.test_cli_runner()
