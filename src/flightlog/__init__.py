@@ -32,14 +32,19 @@ def create_app(test_config=None):
         ingest,
         rate_limits,
         read_api,
+        report,
         worker,
     )
     from flightlog.infrastructure import db
-    from flightlog.infrastructure.agent_session_queries import request_agent_session_queries
+    from flightlog.infrastructure.agent_session_queries import (
+        request_agent_session_queries,
+        request_report_queries,
+    )
     from flightlog.infrastructure.audit_log import new_audit_log, request_audit_queries
     from flightlog.infrastructure.connector_repository import request_connector_queries
     from flightlog.infrastructure.job_queue import request_job_queries
     from flightlog.infrastructure.mapping import start_mappers
+    from flightlog.infrastructure.pdf import ChromiumPdfRenderer
     from flightlog.infrastructure.probe import database_is_reachable
     from flightlog.infrastructure.unit_of_work import new_unit_of_work, request_unit_of_work
 
@@ -49,6 +54,8 @@ def create_app(test_config=None):
     app.extensions["worker_unit_of_work"] = new_unit_of_work
     app.extensions["agent_session_queries"] = request_agent_session_queries
     app.extensions["job_queries"] = request_job_queries
+    app.extensions["report_queries"] = request_report_queries
+    app.extensions["pdf_renderer"] = ChromiumPdfRenderer
     app.extensions["connector_queries"] = request_connector_queries
     app.extensions["audit_log"] = new_audit_log
     app.extensions["end_request_session"] = db.end_request_session
@@ -64,6 +71,7 @@ def create_app(test_config=None):
     app.register_blueprint(admin.bp)
     app.register_blueprint(read_api.bp)
     app.register_blueprint(connectors.bp)
+    app.register_blueprint(report.bp)
     rate_limits.init_app(app)
     audit.init_app(app)
 

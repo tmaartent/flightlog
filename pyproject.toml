@@ -20,6 +20,7 @@ dev = [
     "httpx>=0.28",
     "ruff>=0.17",
     "import-linter>=2.16",
+    "pypdf>=7.2",  # page counts and text of the report PDF in tests
 ]
 
 [build-system]

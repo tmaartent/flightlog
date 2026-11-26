@@ -6,6 +6,7 @@ from flightlog.application.jobs import Job, JobKind
 from flightlog.contracts.admin import FailedJob
 from flightlog.contracts.audit import AuditEntry, AuditFilter, AuditPage
 from flightlog.contracts.connectors import ConnectorInfo
+from flightlog.contracts.report import ReportSession
 from flightlog.contracts.sessions import (
     LinkedPullRequest,
     SessionFilter,
@@ -164,6 +165,26 @@ class AuditLog(Protocol):
 class AuditQueries(Protocol):
     def list_entries(self, audit_filter: AuditFilter) -> AuditPage:
         """Rows matching the filter, newest first, one page before `audit_filter.before`."""
+        ...
+
+
+class ReportQueries(Protocol):
+    """Read side of the weekly report (ADR-0016): two queries for a whole week, no N+1."""
+
+    def sessions_started(
+        self, start: datetime.datetime, end: datetime.datetime
+    ) -> list[ReportSession]:
+        """Sessions with start <= started_at < end, each with its linked pull requests."""
+        ...
+
+    def events_of(self, session_ids: list[int]) -> dict[int, list[SessionEvent]]:
+        """The applied events of these sessions, in timeline order, keyed by session id."""
+        ...
+
+
+class PdfRenderer(Protocol):
+    def render(self, html: str, footer: str) -> bytes:
+        """A self-contained HTML page as an A4 PDF, `footer` and the page number on every page."""
         ...
 
 
