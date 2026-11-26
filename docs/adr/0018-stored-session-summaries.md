@@ -22,6 +22,19 @@ Two facts from earlier ADRs shape it. Events arrive out of order, so one can lan
 - **`rules_version`** (now 1) is bumped when the counting rules change. `flask summaries rebuild` queues a job (`enqueue_unless_queued`: `ON CONFLICT DO NOTHING`) for every stopped session without a digest of the current version, using its latest event. That is also the backfill for sessions from before this release; the migration computes nothing.
 - **A line written by the Claude API** waits for a task of its own. It sends session data to an outside service and needs a key and a cost limit, and its input would have to be the digest, not the events.
 
+## Reading digests (M5 task 2)
+- **One read path** for `flask sessions`, the MCP tools (task 3) and the read API client (task 4): the use case `recent_sessions(repo, last, queries)` over a `DigestQueries` port. Its one query reads sessions left-joined with their digest, plus the linked PRs through the dashboard's builder.
+- **Derived when read:**
+  - **the newest linked PR and its outcome;**
+  - **a goal:** that PR's title, or the branch made readable (`feat/rate-limits` → "rate limits"), or nothing;
+  - **a state:** `ready`, `pending` (stopped, not summarized yet) or `running` (still active, which another agent on the same repo wants to know).
+- **Text from GitHub is cleaned** (`clean_text`): one line, no control or format characters (terminal escapes, zero-width characters), at most 72 characters. A PR title can't fake a second entry or move the cursor. An agent still has to treat it as data.
+- **`flask sessions [--repo NAME] [--last 1..20] [--json]`.**
+  - `--repo` defaults to the current folder's name (the hook's `repo_name`).
+  - Text output is two lines per session, at most 120 characters each, so even `--last 20` (41 lines) fits one screen. The goal is cut to 56 characters there, and only the first file is named.
+  - `--json` gives every field: counts as numbers, times in ISO 8601.
+- **UTF-8 on stdout, always.** Agents read the output through a pipe, and on Windows Python would write the console's code page: `·` became mojibake, and a `✓` in a PR title raised `UnicodeEncodeError`. The command reconfigures `sys.stdout` to UTF-8 (with `errors="replace"`).
+
 ## Consequences
 - After `SessionEnd`, a digest exists once the worker has run its next job. An active session has none.
 - One more job per finished session and per late event: a scan of that session's events.
