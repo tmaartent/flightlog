@@ -4,6 +4,7 @@ from typing import Protocol, Self
 
 from flightlog.application.jobs import Job, JobKind
 from flightlog.contracts.admin import FailedJob
+from flightlog.contracts.connectors import ConnectorInfo
 from flightlog.contracts.sessions import (
     LinkedPullRequest,
     SessionFilter,
@@ -11,7 +12,7 @@ from flightlog.contracts.sessions import (
     SessionSummary,
 )
 from flightlog.contracts.timeline import SessionEvent
-from flightlog.domain import AgentSession, PullRequest, RecordedEvent
+from flightlog.domain import AgentSession, Connector, PullRequest, RecordedEvent
 
 
 class EventLog(Protocol):
@@ -41,6 +42,20 @@ class PullRequestRepository(Protocol):
 
     def add(self, pull_request: PullRequest) -> None:
         """Store a new pull request."""
+        ...
+
+
+class ConnectorRepository(Protocol):
+    def get_by_prefix(self, key_prefix: str) -> Connector | None:
+        """The connector whose key has this prefix, revoked or not."""
+        ...
+
+    def get_by_name(self, name: str) -> Connector | None:
+        """The connector with this name, revoked or not. Changes are saved on commit."""
+        ...
+
+    def add(self, connector: Connector) -> None:
+        """Store a new connector."""
         ...
 
 
@@ -77,6 +92,7 @@ class UnitOfWork(Protocol):
     jobs: JobQueue
     agent_sessions: AgentSessionRepository
     pull_requests: PullRequestRepository
+    connectors: ConnectorRepository
 
     def commit(self) -> None: ...
 
@@ -121,6 +137,14 @@ class JobQueries(Protocol):
 
     def failed_jobs(self) -> list[FailedJob]:
         """Jobs the worker gave up on, most recently failed first."""
+        ...
+
+
+class ConnectorQueries(Protocol):
+    """Read side of the connectors, for the admin page and `flask connector list`."""
+
+    def list_connectors(self) -> list[ConnectorInfo]:
+        """Every connector, revoked ones too, oldest first."""
         ...
 
 

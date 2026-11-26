@@ -5,6 +5,7 @@ from flask import current_app
 from sqlalchemy.orm import Session
 
 from flightlog.infrastructure.agent_session_repository import SqlAgentSessionRepository
+from flightlog.infrastructure.connector_repository import SqlConnectorRepository
 from flightlog.infrastructure.db import get_session
 from flightlog.infrastructure.event_log import SqlEventLog
 from flightlog.infrastructure.job_queue import SqlJobQueue
@@ -20,6 +21,7 @@ class SqlUnitOfWork:
         self.jobs = SqlJobQueue(session)
         self.agent_sessions = SqlAgentSessionRepository(session)
         self.pull_requests = SqlPullRequestRepository(session)
+        self.connectors = SqlConnectorRepository(session)
 
     def commit(self) -> None:
         self._session.commit()
