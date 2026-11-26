@@ -5,7 +5,7 @@ import pytest
 from alembic.config import Config
 from flask import Flask
 from sqlalchemy import Connection, Engine, create_engine, make_url, text
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 from flightlog.infrastructure.mapping import start_mappers
 from tests.harness import (
@@ -13,6 +13,7 @@ from tests.harness import (
     TEST_DATABASE_URL,
     create_database_if_missing,
     make_app,
+    make_test_app,
     migrate_to_head,
 )
 
@@ -23,17 +24,8 @@ MIGRATIONS_DATABASE_URL = make_url(TEST_DATABASE_URL).set(database="flightlog_mi
 
 @pytest.fixture
 def app(db_connection: Connection) -> Flask:
-    """A fresh app per test whose requests run inside the test's transaction.
-
-    get_session() in a route uses the same connection as the db_session fixture, so a test
-    can post a webhook and then query what the route stored. Everything is rolled back
-    after the test, including what the route committed.
-    """
-    app = make_app()
-    app.extensions["sessionmaker"] = sessionmaker(
-        bind=db_connection, join_transaction_mode="create_savepoint"
-    )
-    return app
+    """A fresh app per test whose requests run inside the test's transaction."""
+    return make_test_app(db_connection)
 
 
 @pytest.fixture

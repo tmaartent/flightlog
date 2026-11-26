@@ -4,6 +4,7 @@ from typing import Protocol, Self
 
 from flightlog.application.jobs import Job, JobKind
 from flightlog.contracts.admin import FailedJob
+from flightlog.contracts.audit import AuditEntry, AuditFilter, AuditPage
 from flightlog.contracts.connectors import ConnectorInfo
 from flightlog.contracts.sessions import (
     LinkedPullRequest,
@@ -46,6 +47,10 @@ class PullRequestRepository(Protocol):
 
 
 class ConnectorRepository(Protocol):
+    def get(self, connector_id: int) -> Connector | None:
+        """The connector with this id, revoked or not. Changes are saved on commit."""
+        ...
+
     def get_by_prefix(self, key_prefix: str) -> Connector | None:
         """The connector whose key has this prefix, revoked or not."""
         ...
@@ -145,6 +150,20 @@ class ConnectorQueries(Protocol):
 
     def list_connectors(self) -> list[ConnectorInfo]:
         """Every connector, revoked ones too, oldest first."""
+        ...
+
+
+class AuditLog(Protocol):
+    """Append-only: there is no update and no delete (ADR-0015)."""
+
+    def record(self, entry: AuditEntry) -> None:
+        """Write the entry in its own transaction, apart from the request's unit of work."""
+        ...
+
+
+class AuditQueries(Protocol):
+    def list_entries(self, audit_filter: AuditFilter) -> AuditPage:
+        """Rows matching the filter, newest first, one page before `audit_filter.before`."""
         ...
 
 

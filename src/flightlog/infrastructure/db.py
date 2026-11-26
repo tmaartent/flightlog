@@ -23,6 +23,14 @@ def get_session() -> Session:
     return g.db_session
 
 
+def end_request_session() -> None:
+    """Close the request's session early, once its response is built (the audit log does).
+
+    Whatever it didn't commit is rolled back, as teardown would do. Safe to call twice.
+    """
+    close_session(None)
+
+
 def close_session(exc: BaseException | None) -> None:
     """Teardown: return the connection to the pool, also when the request failed."""
     session: Session | None = g.pop("db_session", None)

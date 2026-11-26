@@ -8,6 +8,7 @@ from flightlog.application.api_keys import (
     authenticate,
     hash_key,
     issue_key,
+    revoke_connector,
     revoke_key,
 )
 from flightlog.contracts.connectors import ConnectorRef, RevokeOutcome
@@ -115,3 +116,14 @@ def test_revoking_is_safe_to_repeat():
 
 def test_revoking_an_unknown_connector_changes_nothing():
     assert revoke_key("nobody", FakeUnitOfWork(), T1) is RevokeOutcome.NOT_FOUND
+
+
+def test_a_connector_can_be_revoked_by_its_id():
+    uow = FakeUnitOfWork()
+    issued = issue_key("ci-script", uow, T0)
+    connector_id = uow.connectors.get_by_name("ci-script").id
+
+    assert revoke_connector(connector_id, uow, T1) is RevokeOutcome.REVOKED
+    assert revoke_connector(connector_id, uow, T1) is RevokeOutcome.ALREADY_REVOKED
+    assert revoke_connector(999, uow, T1) is RevokeOutcome.NOT_FOUND
+    assert authenticate(issued.key, uow) is None

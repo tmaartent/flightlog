@@ -65,8 +65,17 @@ def authenticate(raw_key: str, uow: UnitOfWork) -> ConnectorRef | None:
 
 
 def revoke_key(name: str, uow: UnitOfWork, now: datetime.datetime) -> RevokeOutcome:
-    """Revoke the connector's key. Safe to repeat: a second revoke changes nothing."""
-    connector = uow.connectors.get_by_name(name)
+    """Revoke the key of the connector with this name (the CLI)."""
+    return _revoke(uow.connectors.get_by_name(name), uow, now)
+
+
+def revoke_connector(connector_id: int, uow: UnitOfWork, now: datetime.datetime) -> RevokeOutcome:
+    """Revoke the key of the connector with this id (the admin page)."""
+    return _revoke(uow.connectors.get(connector_id), uow, now)
+
+
+def _revoke(connector: Connector | None, uow: UnitOfWork, now: datetime.datetime) -> RevokeOutcome:
+    """Safe to repeat: a second revoke changes nothing."""
     if connector is None:
         return RevokeOutcome.NOT_FOUND
     if not connector.is_active:

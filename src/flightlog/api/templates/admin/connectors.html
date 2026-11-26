@@ -2,7 +2,7 @@
 {% block title %}Connectors{% endblock %}
 {% block content %}
 <h1>Connectors</h1>
-<p class="muted">Clients of the read API, each with its own key. Only the prefix is kept, so a key can be recognised here but not read. Create and revoke with <code>flask connector create &lt;name&gt;</code> and <code>flask connector revoke &lt;name&gt;</code>.</p>
+<p class="muted">Clients of the read API, each with its own key. Only the prefix is kept, so a key can be recognised here but not read. Create one with <code>flask connector create &lt;name&gt;</code>; revoking here takes effect on the connector's next request.</p>
 
 {% if connectors %}
 <div class="table-wrap">
@@ -13,6 +13,7 @@
       <th scope="col">Key</th>
       <th scope="col">Created</th>
       <th scope="col">State</th>
+      <th scope="col"><span class="visually-hidden">Action</span></th>
     </tr>
   </thead>
   <tbody>
@@ -22,6 +23,14 @@
       <td><code>fl_{{ c.prefix }}_…</code></td>
       <td>{{ c.created_at | utc }}</td>
       <td>{% if c.revoked_at %}revoked {{ c.revoked_at | utc }}{% else %}active{% endif %}</td>
+      <td>
+        {% if not c.revoked_at %}
+        <form method="post" action="{{ url_for('admin.revoke_connector', connector_id=c.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" aria-label="Revoke {{ c.name }}">Revoke</button>
+        </form>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>

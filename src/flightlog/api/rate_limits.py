@@ -10,6 +10,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 from flightlog.api import auth, read_api
+from flightlog.api.bearer import current_connector
 
 DEFAULTS = {
     # Every config key can be overridden from the environment (FLASK_RATELIMIT_…).
@@ -27,12 +28,12 @@ DEFAULTS = {
 
 def api_key() -> str:
     """The bucket for a read API request: its connector, or its IP when the key isn't valid."""
-    connector = read_api.current_connector()
+    connector = current_connector()
     return f"connector:{connector.id}" if connector else f"ip:{get_remote_address()}"
 
 
 def api_limit() -> str:
-    limit = "RATELIMIT_API" if read_api.current_connector() else "RATELIMIT_API_ANONYMOUS"
+    limit = "RATELIMIT_API" if current_connector() else "RATELIMIT_API_ANONYMOUS"
     return current_app.config[limit]
 
 

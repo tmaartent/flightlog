@@ -14,6 +14,7 @@
       <a href="{{ url_for('dashboard.sessions') }}">Sessions</a>
       <a href="{{ url_for('admin.jobs') }}">Failed jobs</a>
       <a href="{{ url_for('admin.connectors') }}">Connectors</a>
+      <a href="{{ url_for('admin.audit') }}">Audit log</a>
       <form method="post" action="{{ url_for('auth.logout') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit">Log out</button>

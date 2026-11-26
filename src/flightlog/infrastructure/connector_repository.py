@@ -13,6 +13,9 @@ class SqlConnectorRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
+    def get(self, connector_id: int) -> Connector | None:
+        return self._session.get(Connector, connector_id)
+
     def get_by_prefix(self, key_prefix: str) -> Connector | None:
         statement = select(Connector).filter_by(key_prefix=key_prefix)
         return self._session.scalars(statement).one_or_none()
@@ -33,11 +36,12 @@ class SqlConnectorQueries:
 
     def list_connectors(self) -> list[ConnectorInfo]:
         c = connectors
-        statement = select(c.c.name, c.c.key_prefix, c.c.created_at, c.c.revoked_at).order_by(
-            c.c.created_at, c.c.id
-        )
+        statement = select(
+            c.c.id, c.c.name, c.c.key_prefix, c.c.created_at, c.c.revoked_at
+        ).order_by(c.c.created_at, c.c.id)
         return [
             ConnectorInfo(
+                id=row.id,
                 name=row.name,
                 prefix=row.key_prefix,
                 created_at=row.created_at,
