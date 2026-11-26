@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% set s = timeline.session %}
+{% block title %}{{ s.repo }} · {{ s.external_id[:8] }}{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="{{ url_for('dashboard.sessions') }}">← Sessions</a></p>
+<h1>{{ s.repo }} <span class="muted">{{ s.branch or "no branch" }}</span></h1>
+
+<dl class="facts">
+  <div><dt>Status</dt><dd><span class="badge badge-{{ s.status }}">{{ s.status }}</span></dd></div>
+  <div><dt>Started</dt><dd>{{ s.started_at | utc }}</dd></div>
+  <div><dt>Ended</dt><dd>{{ s.ended_at | utc if s.ended_at else "—" }}</dd></div>
+  <div><dt>Duration</dt><dd>{{ s.started_at | duration(s.ended_at) }}</dd></div>
+  <div><dt>Tests</dt><dd>{{ timeline.test_runs }} test run{{ "" if timeline.test_runs == 1 else "s" }}</dd></div>
+  <div><dt>Session</dt><dd><code>{{ s.external_id }}</code></dd></div>
+</dl>
+
+{% if s.pending_events %}
+<p class="notice" role="status">{{ s.pending_events }} event{{ "" if s.pending_events == 1 else "s" }} not processed yet. The timeline fills in once the worker has applied {{ "it" if s.pending_events == 1 else "them" }}.</p>
+{% endif %}
+
+<section aria-labelledby="prs">
+  <h2 id="prs">Pull requests</h2>
+  {% if timeline.pull_requests %}
+  <ul class="prs">
+    {% for pr in timeline.pull_requests %}
+    <li><span class="badge badge-{{ pr.outcome }}">{{ pr.outcome }}</span> #{{ pr.number }} {{ pr.title }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No pull request from this branch.</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="files">
+  <h2 id="files">Files touched</h2>
+  {% if timeline.files_touched %}
+  <ul class="files">
+    {% for path in timeline.files_touched %}<li><code>{{ path }}</code></li>{% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No files edited.</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="events">
+  <h2 id="events">Timeline</h2>
+  {% if timeline.entries %}
+  <ol class="timeline">
+    {% for e in timeline.entries %}
+    <li class="entry entry-{{ e.kind }}">
+      <time datetime="{{ e.occurred_at.isoformat() }}">{{ e.occurred_at | utc_time }}</time>
+      <span class="kind">{{ e.kind.replace("_", " ") }}</span>
+      {% if e.kind == "marker" %}
+        <span>{{ e.type }}</span>
+      {% else %}
+        <span class="tool">{{ e.tool_name }}</span>
+        {% if e.command %}<code>{{ e.command }}</code>{% elif e.file_path %}<code>{{ e.file_path }}</code>{% endif %}
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="muted">No events applied yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

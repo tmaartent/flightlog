@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Flightlog{% endblock %} · Flightlog</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='flightlog.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="{{ url_for('dashboard.sessions') }}">Flightlog</a>
+    <nav aria-label="Main">
+      <a href="{{ url_for('dashboard.sessions') }}">Sessions</a>
+      {% block nav_extra %}{% endblock %}
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
