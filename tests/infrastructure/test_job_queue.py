@@ -8,7 +8,7 @@ from flightlog.application.jobs import JobKind
 from flightlog.contracts.ingest import CLAUDE
 from flightlog.domain import RecordedEvent
 from flightlog.infrastructure.event_log import SqlEventLog
-from flightlog.infrastructure.job_queue import SqlJobQueue
+from flightlog.infrastructure.job_queue import SqlJobQueries, SqlJobQueue
 from flightlog.infrastructure.tables import event_jobs
 
 NOW = datetime.datetime(2026, 11, 15, 10, 0, tzinfo=datetime.UTC)
@@ -149,3 +149,70 @@ def test_a_job_given_up_on_is_marked_failed_and_never_claimed_again(db_session):
     assert row.attempts == 1
     assert row.failed_at is not None
     assert queue.claim_next() is None
+
+
+def fail_job(session: Session, delivery_id: str, error: str = "KeyError: 'pull_request'") -> int:
+    """A queued job the worker has given up on. Returns the job id."""
+    queue_event(session, delivery_id)
+    queue = SqlJobQueue(session)
+    job = queue.claim_next()
+    queue.give_up(job, error)
+    return job.id
+
+
+@pytest.mark.db
+def test_a_retried_job_is_due_now_with_a_fresh_set_of_attempts(db_session):
+    job_id = fail_job(db_session, "d1")
+    queue = SqlJobQueue(db_session)
+
+    assert queue.retry_now(job_id) is True
+
+    row = job_row(db_session, job_id)
+    assert row.failed_at is None
+    assert row.attempts == 0
+    assert row.last_error == "KeyError: 'pull_request'"  # kept until the next run
+    claimed = queue.claim_next()
+    assert claimed is not None and claimed.id == job_id
+
+
+@pytest.mark.db
+def test_only_a_failed_job_can_be_retried(db_session):
+    queue_event(db_session, "d1")
+    queue = SqlJobQueue(db_session)
+    pending = queue.claim_next()
+    queue.retry_later(pending, "ValueError: boom", datetime.timedelta(minutes=1))
+
+    assert queue.retry_now(pending.id) is False
+    assert queue.retry_now(999_999) is False
+    assert job_row(db_session, pending.id).attempts == 1  # untouched
+
+
+@pytest.mark.db
+def test_retrying_twice_is_harmless(db_session):
+    job_id = fail_job(db_session, "d1")
+    queue = SqlJobQueue(db_session)
+
+    assert queue.retry_now(job_id) is True
+    assert queue.retry_now(job_id) is False
+
+
+@pytest.mark.db
+def test_failed_jobs_are_listed_with_their_event_newest_failure_first(db_session):
+    first = fail_job(db_session, "d1", "ValueError: first")
+    db_session.execute(
+        update(event_jobs)
+        .where(event_jobs.c.id == first)
+        .values(failed_at=text("now() - interval '1 hour'"))
+    )
+    second = fail_job(db_session, "d2", "ValueError: second")
+    queue_event(db_session, "d3")  # pending, not failed
+
+    failed = SqlJobQueries(db_session).failed_jobs()
+
+    assert [f.job_id for f in failed] == [second, first]
+    assert failed[0].kind == JobKind.APPLY_TO_SESSION
+    assert failed[0].source == CLAUDE
+    assert failed[0].event_type == "PostToolUse"
+    assert failed[0].occurred_at == NOW
+    assert failed[0].attempts == 1
+    assert failed[0].last_error == "ValueError: second"

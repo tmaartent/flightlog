@@ -3,6 +3,7 @@ from types import TracebackType
 from typing import Protocol, Self
 
 from flightlog.application.jobs import Job, JobKind
+from flightlog.contracts.admin import FailedJob
 from flightlog.contracts.sessions import (
     LinkedPullRequest,
     SessionFilter,
@@ -64,6 +65,10 @@ class JobQueue(Protocol):
         """Count the attempt and mark the job failed; it stays visible for a manual retry."""
         ...
 
+    def retry_now(self, job_id: int) -> bool:
+        """Make a failed job due now with zero attempts. False if no failed job has this id."""
+        ...
+
 
 class UnitOfWork(Protocol):
     """One transaction. Everything a use case changes is committed together, or not at all."""
@@ -108,6 +113,14 @@ class AgentSessionQueries(Protocol):
 
     def session_events(self, session_id: int) -> list[SessionEvent]:
         """The session's applied events, ordered by occurred_at, then id (ADR-0010)."""
+        ...
+
+
+class JobQueries(Protocol):
+    """Read side of the queue, for the admin page."""
+
+    def failed_jobs(self) -> list[FailedJob]:
+        """Jobs the worker gave up on, most recently failed first."""
         ...
 
 
