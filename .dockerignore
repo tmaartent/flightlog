@@ -1,0 +1,20 @@
+# Only pyproject.toml, src/, alembic.ini and migrations/ go into the image.
+.git
+.github
+.venv
+.env
+.env.*
+.claude
+.idea
+.vscode
+**/__pycache__
+**/*.pyc
+*.egg-info
+.pytest_cache
+.ruff_cache
+tests
+scripts
+docs
+reports
+test-results
+playwright-report
