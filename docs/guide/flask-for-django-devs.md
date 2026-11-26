@@ -30,6 +30,7 @@ Flask is a small core plus your own choices. Django gives you the house; Flask g
 | `messages.success(request, ...)` | `flash(message, category)` + `get_flashed_messages(with_categories=True)` | `RedirectAttributes.addFlashAttribute` | Stored in the session cookie until the next page reads it, which is what makes Post/Redirect/Get show a message. |
 | A template context processor | `@bp.app_context_processor` returning a dict | `@ControllerAdvice` + `@ModelAttribute` | Values or functions every template can use, such as `csrf_token()` and `is_admin`. |
 | `make_password` / `check_password` | `werkzeug.security.generate_password_hash` / `check_password_hash` | `PasswordEncoder` (`SCryptPasswordEncoder`) | Scrypt by default in Werkzeug 3, with the method and salt in the stored string. The comparison is constant-time. |
+| DRF throttling (`UserRateThrottle`, `AnonRateThrottle`, `DEFAULT_THROTTLE_RATES`) | Flask-Limiter: `limiter.shared_limit("120 per minute", scope=..., key_func=...)` on a blueprint | Bucket4j, or Resilience4j's `RateLimiter` | Flask-Limiter is an extension like DRF throttling: a key function picks the bucket, the storage (`memory://`, `redis://`) holds the counters. A plain `limit` on a blueprint is one bucket per endpoint; `shared_limit` is one for all. |
 | `django.test.Client` | `app.test_client()`, `app.test_cli_runner()` | `MockMvc` | Make a `client` fixture in `conftest.py` from `create_app(test_config)`. |
 
 ## Things that bite
@@ -39,6 +40,7 @@ Flask is a small core plus your own choices. Django gives you the house; Flask g
 - **`g` is not a cache.** It's gone after the request. Don't store anything there you need next time.
 - **`debug=True` is not for production.** Run under gunicorn in Docker (`gunicorn "flightlog:create_app()"`).
 - **Flask's JSON provider writes a `datetime` as an HTTP date** (`Mon, 16 Nov 2026 10:00:00 GMT`), not ISO 8601. Convert times yourself in an API: DRF does ISO, Flask doesn't.
+- **App-level `before_request` runs before blueprint `before_request`.** Flask-Limiter registers its check on the app, so its key function runs before a blueprint's auth hook. Compute what both need lazily and cache it on `g` (`read_api.current_connector()`).
 - **`flask.session` is a signed cookie,** not server-side storage, and has nothing to do with the SQLAlchemy session. Don't mix them up in an interview answer.
 - **A blueprint's 404/405 handler doesn't fire for unknown URLs.** `@bp.errorhandler(404)` only handles an `abort(404)` raised inside that blueprint's own views. When no route matches, Flask doesn't know which blueprint the URL was meant for (`request.blueprints` is `[]`), so `/ingest/nope` falls through to the app-level handler. Decide JSON vs. HTML there, by path prefix.
 - **Autoescaping depends on the file extension.** Jinja escapes `{{ }}` in `.html`, `.xml` and `.htm` templates by default, but not in `render_template_string` or a `.txt` template. Untrusted text, like hook payloads, must only go through `.html` templates and never through `|safe`.
@@ -50,4 +52,5 @@ Flask is a small core plus your own choices. Django gives you the house; Flask g
 - "Why an app factory?" Testability (a fresh app per test with its own config), no global state at import time, several configs side by side.
 - "How do you manage the DB session in Flask?" One per request on `g`, closed in teardown; commit at the end of the unit of work, roll back on error.
 - "How do you store API keys?" Hash them. A fast SHA-256 is enough for long random keys (nothing to guess); passwords need a slow, salted hash. Keep a prefix to look the row up and to show in a UI, compare in constant time, and return one 401 for every failure.
+- "How would you rate limit an API?" Key on the client (API key), not the IP; a lower per-IP limit for unauthenticated requests; a sliding-window counter instead of a fixed window (no 2× burst at the edge); shared storage such as Redis once there is more than one process; 429 with `Retry-After`.
 - "Flask or Django?" Django when you want admin, auth and ORM out of the box. Flask when you integrate systems and want a small, explicit service, which is usually the case for middleware.

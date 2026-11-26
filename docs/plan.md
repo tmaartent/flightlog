@@ -56,7 +56,7 @@ Goal: production manners.
 
 Tasks
 1. `api` blueprint: `GET /api/v1/sessions` and `GET /api/v1/sessions/<id>`. Bearer API key **per connector**, stored as a SHA-256 hash with a prefix you can show in the UI. Done: `flask connector create|list|revoke`, `/admin/connectors`, the dashboard's timeline as JSON, JSON errors for `/api` and `/ingest`. See [ADR-0005](adr/0005-api-keys-per-connector.md).
-2. Rate limiting with Flask-Limiter, keyed on the connector, not the IP.
+2. Rate limiting with Flask-Limiter, keyed on the connector, not the IP. Done: one shared limit for the API per connector, per IP without a valid key, and on `POST /login`. See [ADR-0014](adr/0014-rate-limits-per-connector.md).
 3. Audit log table: who (connector), what (route, method), which object, when, outcome. Written for every API call and every admin action.
 4. Weekly report: a Jinja template rendered to PDF with Playwright's `page.pdf()` in headless Chromium (`flask --app flightlog report --week 2026-W46`). See [ADR-0006](adr/0006-playwright-for-e2e-and-pdf.md).
 5. Playwright end-to-end test: start the app, post a signed event, run the worker once, open the dashboard and assert the session appears.

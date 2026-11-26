@@ -29,6 +29,7 @@ def create_app(test_config=None):
         errors,
         health,
         ingest,
+        rate_limits,
         read_api,
         worker,
     )
@@ -58,5 +59,6 @@ def create_app(test_config=None):
     app.register_blueprint(admin.bp)
     app.register_blueprint(read_api.bp)
     app.register_blueprint(connectors.bp)
+    rate_limits.init_app(app)
 
     return app

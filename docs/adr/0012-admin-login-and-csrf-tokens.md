@@ -20,5 +20,5 @@ Alternatives considered: Flask-Login (user objects and a user loader for one acc
 - **Two secrets more to configure:** `FLASK_SECRET_KEY` and `FLASK_ADMIN_PASSWORD_HASH`. Without them the login page says that login isn't configured, instead of failing with a 500.
 - **No lockout yet.** Brute-forcing the login is slowed only by scrypt. Flask-Limiter (M4) gets a limit on `POST /login`.
 - **Changing `SECRET_KEY` logs everyone out,** which is also the way to end every session at once.
-- **Admin actions aren't audited yet;** the audit log (M4, ADR-0014) adds login, logout and retry.
+- **Admin actions aren't audited yet;** the audit log (M4, ADR-0015) adds login, logout and retry.
 - **`SameSite=Lax` already blocks cross-site POSTs** in current browsers. The token is still needed for older browsers and for same-site attacks from another app on `localhost`.

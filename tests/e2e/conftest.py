@@ -39,7 +39,8 @@ def pytest_collection_modifyitems(items):
 def e2e_app() -> Flask:
     create_database_if_missing(E2E_DATABASE_URL)
     migrate_to_head(E2E_DATABASE_URL)
-    return make_app(DATABASE_URL=E2E_DATABASE_URL)
+    # One live server for the whole run, and most tests log in: 5 logins a minute is too few.
+    return make_app(DATABASE_URL=E2E_DATABASE_URL, RATELIMIT_LOGIN="1000 per minute")
 
 
 @pytest.fixture(scope="session")
