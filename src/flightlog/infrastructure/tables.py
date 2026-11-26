@@ -69,6 +69,8 @@ event_logs = Table(
     # Set by the worker once the event is applied; until then the event has no session.
     Column("agent_session_id", Integer, ForeignKey("agent_sessions.id"), nullable=True),
     UniqueConstraint("source", "delivery_id"),
+    # A session's timeline, in order (ADR-0010). PostgreSQL doesn't index foreign keys itself.
+    Index("ix_event_logs_session_timeline", "agent_session_id", "occurred_at", "id"),
 )
 
 # The work queue (ADR-0008): one row per job still to do. A finished job is deleted, so a row's

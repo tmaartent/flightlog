@@ -3,7 +3,13 @@ from types import TracebackType
 from typing import Protocol, Self
 
 from flightlog.application.jobs import Job, JobKind
-from flightlog.contracts.sessions import LinkedPullRequest
+from flightlog.contracts.sessions import (
+    LinkedPullRequest,
+    SessionFilter,
+    SessionPage,
+    SessionSummary,
+)
+from flightlog.contracts.timeline import SessionEvent
 from flightlog.domain import AgentSession, PullRequest, RecordedEvent
 
 
@@ -86,6 +92,22 @@ class AgentSessionQueries(Protocol):
 
     def linked_pull_requests(self, session_id: int) -> list[LinkedPullRequest]:
         """The PRs opened from the session's branch in its repo, oldest first (ADR-0009)."""
+        ...
+
+    def list_sessions(self, session_filter: SessionFilter) -> SessionPage:
+        """Sessions matching the filter, newest first, one page after `session_filter.after`."""
+        ...
+
+    def repos(self) -> list[str]:
+        """Every repo that has a session, sorted: the choices for the repo filter."""
+        ...
+
+    def session_summary(self, session_id: int) -> SessionSummary | None:
+        """One session as a list row, or None if there is no session with this id."""
+        ...
+
+    def session_events(self, session_id: int) -> list[SessionEvent]:
+        """The session's applied events, ordered by occurred_at, then id (ADR-0010)."""
         ...
 
 

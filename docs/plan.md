@@ -43,11 +43,11 @@ Goal: see what an agent did and what came of it.
 
 Tasks
 1. GitHub `pull_request` events: link a session to a PR through the branch name; the hook client reads the branch from `cwd`. Done: linked at read time, "reverted" derived from GitHub's revert PRs; `push` is recorded but not processed. See [ADR-0009](adr/0009-link-sessions-to-pull-requests-at-read-time.md).
-2. `dashboard` blueprint with Jinja templates: a session list (filter by repo, status) and a timeline per session: tool calls, files touched, test runs, the linked PR and its outcome.
+2. `dashboard` blueprint with Jinja templates: a session list (filter by repo, status) and a timeline per session: tool calls, files touched, test runs, the linked PR and its outcome. Done: keyset-paged list, timeline with masked commands, Playwright UI tests. See [ADR-0010](adr/0010-dashboard-read-models-and-session-timeline.md) and [ADR-0013](adr/0013-playwright-against-a-live-server-on-its-own-database.md).
 3. `failed` events visible on an admin page, with a "retry" button (POST, not GET).
 
 Done when
-- [ ] A session with a merged PR shows the PR and "merged"; a reverted PR shows "reverted"
+- [x] A session with a merged PR shows the PR and "merged"; a reverted PR shows "reverted"
 - [ ] The retry button re-queues a failed event, and the test proves it is processed
 
 ## M4 · Secure API, Playwright, Docker
@@ -81,6 +81,7 @@ Tasks
     - `recent_sessions(repo)`: date, goal, files touched, outcome
     - `attempts_on(path)`: earlier sessions that touched this file, and what came of them
     - `session_summary(id)`: the stored summary of one session
+4. A typed Python client, for agents that write code instead of calling tools one by one ("code execution with MCP"). The agent imports it in a script, filters and joins the results there, and only the answer reaches its context. Claude Code already runs code, so there's no sandbox to build. Same functions as the MCP tools, plus the list queries behind them, so it can answer questions the three tools can't ("which files led to a reverted PR most often this month?"). It talks to the M4 read API with its own API key (ADR-0005), never to the database. Package layout, and when the MCP tools or the client pay off, go in an ADR when the task starts.
 
 Rules
 - **Structured output only** (counts, paths, outcomes, ids). Never raw transcript or tool text: old sessions contain content from web pages and files, and feeding that back would bring injected instructions back with it.
@@ -94,6 +95,7 @@ Done when
 - [ ] A new Claude Code session can call `recent_sessions` and gets structured data back
 - [ ] Calls to the Flightlog MCP tools don't show up as events in Flightlog
 - [ ] The MCP server imports nothing from `infrastructure` (import-linter)
+- [ ] A script using the client answers a question across sessions and prints only the result; the client needs an API key and has no database access
 
 ## Later (only if there's time)
 

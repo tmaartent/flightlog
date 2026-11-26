@@ -1,6 +1,6 @@
 # 0006 · Playwright for end-to-end tests and PDF rendering
 
-- Status: Proposed
+- Status: Accepted (end-to-end tests since 2026-11-26; PDF in M4)
 - Date: 2026-11-12
 
 ## Context

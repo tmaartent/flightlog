@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Sessions{% endblock %}
+{% block content %}
+<h1>Sessions</h1>
+
+<form class="filters" method="get" action="{{ url_for('dashboard.sessions') }}">
+  <label>Repo
+    <select name="repo">
+      <option value="">All repos</option>
+      {% for repo in repos %}
+      <option value="{{ repo }}"{% if repo == session_filter.repo %} selected{% endif %}>{{ repo }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Status
+    <select name="status">
+      <option value="">Any status</option>
+      {% for status in statuses %}
+      <option value="{{ status }}"{% if status == session_filter.status %} selected{% endif %}>{{ status }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit">Filter</button>
+</form>
+
+{% if page.sessions %}
+<div class="table-wrap">
+<table class="sessions">
+  <thead>
+    <tr>
+      <th scope="col">Started</th>
+      <th scope="col">Repo</th>
+      <th scope="col">Branch</th>
+      <th scope="col">Status</th>
+      <th scope="col">Duration</th>
+      <th scope="col">Session</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in page.sessions %}
+    <tr>
+      <td><time datetime="{{ s.started_at.isoformat() }}">{{ s.started_at | utc }}</time></td>
+      <td>{{ s.repo }}</td>
+      <td>{{ s.branch or "—" }}</td>
+      <td>
+        <span class="badge badge-{{ s.status }}">{{ s.status }}</span>
+        {% if s.pending_events %}<span class="pending">{{ s.pending_events }} pending</span>{% endif %}
+      </td>
+      <td>{{ s.started_at | duration(s.ended_at) }}</td>
+      <td><a href="{{ url_for('dashboard.timeline', session_id=s.id) }}">{{ s.external_id[:8] }}</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="empty">No sessions{% if session_filter.repo or session_filter.status %} match this filter{% else %} yet{% endif %}.</p>
+{% endif %}
+
+{% if older_url %}
+<p class="pager"><a href="{{ older_url }}" rel="next">Older sessions</a></p>
+{% endif %}
+{% endblock %}

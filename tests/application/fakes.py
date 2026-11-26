@@ -5,6 +5,8 @@ from types import TracebackType
 from typing import Self
 
 from flightlog.application.jobs import Job, JobKind
+from flightlog.contracts.sessions import LinkedPullRequest, SessionSummary
+from flightlog.contracts.timeline import SessionEvent
 from flightlog.domain import AgentSession, PullRequest, RecordedEvent
 
 
@@ -100,3 +102,21 @@ class FakeUnitOfWork:
         exc_tb: TracebackType | None,
     ) -> None:
         pass
+
+
+class FakeAgentSessionQueries:
+    """The read side as dicts keyed on session id; what a test doesn't set is empty."""
+
+    def __init__(self) -> None:
+        self.summaries: dict[int, SessionSummary] = {}
+        self.events: dict[int, list[SessionEvent]] = {}
+        self.pull_requests: dict[int, list[LinkedPullRequest]] = {}
+
+    def session_summary(self, session_id: int) -> SessionSummary | None:
+        return self.summaries.get(session_id)
+
+    def session_events(self, session_id: int) -> list[SessionEvent]:
+        return self.events.get(session_id, [])
+
+    def linked_pull_requests(self, session_id: int) -> list[LinkedPullRequest]:
+        return self.pull_requests.get(session_id, [])
