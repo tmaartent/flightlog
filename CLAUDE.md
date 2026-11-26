@@ -52,6 +52,8 @@ pip install -e ".[dev]" && playwright install chromium
 alembic upgrade head
 flask --app flightlog run --debug       # http://localhost:5000
 docker compose up -d --build --wait     # the whole stack in containers, http://localhost:8000
+flask --app flightlog sessions --last 5 # what earlier sessions in this repo did
+flask --app flightlog mcp               # the read-only MCP server (Claude Code starts it from .mcp.json)
 pytest
 ruff check . && ruff format --check .
 ```

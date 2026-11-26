@@ -217,6 +217,14 @@ class DigestQueries(Protocol):
         """The repo's newest sessions, newest first, each with its digest and linked PRs."""
         ...
 
+    def attempts_on(self, repo: str, path: str, limit: int) -> list[DigestedSession]:
+        """The repo's sessions whose digest lists `path` (relative to the repo), newest first."""
+        ...
+
+    def one(self, session_id: int) -> DigestedSession | None:
+        """One session with its digest and linked PRs, or None."""
+        ...
+
 
 class PdfRenderer(Protocol):
     def render(self, html: str, footer: str) -> bytes:

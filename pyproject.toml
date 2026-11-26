@@ -12,6 +12,7 @@ dependencies = [
     "playwright>=1.65,<2",
     "python-dotenv>=1.2",
     "gunicorn>=23",  # the WSGI server in the container
+    "mcp>=2.3,<3",  # the read-only MCP server (ADR-0019); 2.x renamed FastMCP to MCPServer
 ]
 
 [project.optional-dependencies]
@@ -80,3 +81,9 @@ name = "Domain, contracts and application stay free of frameworks"
 type = "forbidden"
 source_modules = ["flightlog.domain", "flightlog.contracts", "flightlog.application"]
 forbidden_modules = ["flask", "sqlalchemy", "alembic", "psycopg"]
+
+[[tool.importlinter.contracts]]
+name = "The MCP server reads only through application queries (M5, ADR-0019)"
+type = "forbidden"
+source_modules = ["flightlog.api.mcp_server"]
+forbidden_modules = ["flightlog.infrastructure", "sqlalchemy", "psycopg"]

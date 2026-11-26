@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "flightlog": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "flask", "--app", "flightlog", "mcp"]
+    }
+  }
+}

@@ -181,4 +181,12 @@ session_digests = Table(
     Column("event_count", Integer, nullable=False),  # the newer digest has more
     Column("rules_version", Integer, nullable=False),
     Column("computed_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    # attempts_on(path): `files_touched @> '["src/a.py"]'`. jsonb_path_ops is smaller and faster
+    # than the default GIN opclass, and containment is the only operator used (ADR-0019).
+    Index(
+        "ix_session_digests_files_touched",
+        "files_touched",
+        postgresql_using="gin",
+        postgresql_ops={"files_touched": "jsonb_path_ops"},
+    ),
 )

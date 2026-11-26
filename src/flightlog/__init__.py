@@ -38,6 +38,7 @@ def create_app(test_config=None):
         errors,
         health,
         ingest,
+        mcp_server,
         rate_limits,
         read_api,
         report,
@@ -86,6 +87,7 @@ def create_app(test_config=None):
     app.register_blueprint(report.bp)
     app.register_blueprint(summaries.bp)
     app.register_blueprint(sessions_cli.bp)
+    app.register_blueprint(mcp_server.bp)
     rate_limits.init_app(app)
     audit.init_app(app)
 

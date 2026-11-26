@@ -188,3 +188,17 @@ def test_main_sends_the_branch_of_the_hook_cwd(hook_env, git_repo):
     ((request, _),) = hook_env(json.dumps(hook).encode())
 
     assert json.loads(request.data)["git"] == {"branch": "main"}
+
+
+@pytest.mark.parametrize("event", ["PreToolUse", "PostToolUse"])
+def test_main_does_not_send_flightlogs_own_mcp_calls(hook_env, event):
+    """M5: calls to Flightlog's MCP tools must not become events, or Flightlog logs itself."""
+    hook = {"hook_event_name": event, "tool_name": "mcp__flightlog__recent_sessions"}
+
+    assert hook_env(json.dumps(hook).encode()) == []
+
+
+def test_main_still_sends_other_mcp_tools(hook_env):
+    hook = {"hook_event_name": "PostToolUse", "tool_name": "mcp__github__get_issue"}
+
+    assert len(hook_env(json.dumps(hook).encode())) == 1
