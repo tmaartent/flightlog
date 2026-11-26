@@ -1,15 +1,18 @@
-"""The dashboard: server-rendered pages, read-only (ADR-0010, ADR-0011)."""
+"""The dashboard: server-rendered pages, read-only, behind the admin login (ADR-0010, 0012)."""
 
 import datetime
 
 from flask import Blueprint, abort, current_app, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 
+from flightlog.api.auth import check_csrf, require_admin
 from flightlog.api.session_filter import STATUSES, parse_session_filter
 from flightlog.application.ports import AgentSessionQueries
 from flightlog.application.timeline import session_timeline
 
 bp = Blueprint("dashboard", __name__)
+bp.before_request(require_admin)
+bp.before_request(check_csrf)
 
 DEFAULT_PAGE_SIZE = 25
 

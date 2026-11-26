@@ -7,6 +7,7 @@ from alembic import command
 from alembic.config import Config
 from flask import Flask
 from sqlalchemy import create_engine, make_url, text
+from werkzeug.security import generate_password_hash
 
 from flightlog import create_app
 
@@ -20,6 +21,9 @@ TEST_DATABASE_URL = os.environ.get(
 
 TEST_GITHUB_SECRET = "test-github-secret"
 TEST_CLAUDE_SECRET = "test-claude-secret"
+TEST_ADMIN_PASSWORD = "correct horse battery staple"
+# Hashed once per test run: scrypt is slow on purpose.
+TEST_ADMIN_PASSWORD_HASH = generate_password_hash(TEST_ADMIN_PASSWORD)
 
 
 def make_app(**overrides) -> Flask:
@@ -30,6 +34,10 @@ def make_app(**overrides) -> Flask:
             "DATABASE_URL": TEST_DATABASE_URL,
             "GITHUB_WEBHOOK_SECRET": TEST_GITHUB_SECRET,
             "CLAUDE_HOOK_SECRET": TEST_CLAUDE_SECRET,
+            "SECRET_KEY": "test-secret-key",
+            "ADMIN_PASSWORD_HASH": TEST_ADMIN_PASSWORD_HASH,
+            # Tests talk plain http to localhost; a Secure cookie would not come back.
+            "SESSION_COOKIE_SECURE": False,
             **overrides,
         }
     )

@@ -10,8 +10,10 @@ import json
 
 from flask import Flask
 from flightlog_hook import build_request
+from playwright.sync_api import Page
 
 from tests.github_util import pull_request_payload
+from tests.harness import TEST_ADMIN_PASSWORD
 from tests.util import make_signature
 
 T0 = datetime.datetime(2026, 11, 16, 10, 0, tzinfo=datetime.UTC)
@@ -82,3 +84,23 @@ def run_worker(app: Flask) -> None:
     """`flask worker --once`: apply everything queued, then stop."""
     result = app.test_cli_runner().invoke(args=["worker", "--once"])
     assert result.exit_code == 0, result.output
+
+
+def fail_next_job(app: Flask, error: str = "OperationalError: the database restarted") -> int:
+    """Make the worker give up on the next queued job, as after its fifth failed attempt.
+
+    The failure itself is simulated; what the test checks is everything after it.
+    """
+    with app.app_context(), app.extensions["worker_unit_of_work"]() as uow:
+        job = uow.jobs.claim_next()
+        assert job is not None, "no queued job to fail"
+        uow.jobs.give_up(job, error)
+        uow.commit()
+        return job.id
+
+
+def log_in(page: Page, password: str = TEST_ADMIN_PASSWORD) -> None:
+    """Log in through the login form, like a person does."""
+    page.goto("/login")
+    page.get_by_label("Password").fill(password)
+    page.get_by_role("button", name="Log in").click()

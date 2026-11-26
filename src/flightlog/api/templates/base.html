@@ -9,12 +9,23 @@
 <body>
   <header class="site-header">
     <a class="brand" href="{{ url_for('dashboard.sessions') }}">Flightlog</a>
+    {% if is_admin %}
     <nav aria-label="Main">
       <a href="{{ url_for('dashboard.sessions') }}">Sessions</a>
-      {% block nav_extra %}{% endblock %}
+      <a href="{{ url_for('admin.jobs') }}">Failed jobs</a>
+      <form method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Log out</button>
+      </form>
     </nav>
+    {% endif %}
   </header>
   <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <p class="flash flash-{{ category }}" role="{{ 'alert' if category == 'error' else 'status' }}">{{ message }}</p>
+    {% endfor %}
+    {% endwith %}
     {% block content %}{% endblock %}
   </main>
 </body>

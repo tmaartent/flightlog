@@ -10,9 +10,11 @@ from collections.abc import Iterator
 
 import pytest
 from flask import Flask
+from playwright.sync_api import Page, expect
 from sqlalchemy import create_engine, make_url, text
 from werkzeug.serving import make_server
 
+from tests.e2e.flows import log_in
 from tests.harness import TEST_DATABASE_URL, create_database_if_missing, make_app, migrate_to_head
 
 E2E_DATABASE_URL = (
@@ -74,3 +76,10 @@ def app_config(e2e_app: Flask) -> Iterator[dict]:
     yield e2e_app.config
     e2e_app.config.clear()
     e2e_app.config.update(saved)
+
+
+@pytest.fixture
+def logged_in(page: Page) -> None:
+    """Log the test's browser page in as the admin, through the login form (ADR-0012)."""
+    log_in(page)
+    expect(page.get_by_role("button", name="Log out")).to_be_visible()

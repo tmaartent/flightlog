@@ -23,6 +23,11 @@ Flask is a small core plus your own choices. Django gives you the house; Flask g
 | `{% url "name" arg %}` / `reverse()` | `url_for("blueprint.endpoint", **values)` | `MvcUriComponentsBuilder` | Values that aren't route parameters become the query string, and `None` values are left out, which is handy for optional filters. |
 | A custom template filter (`@register.filter` + `{% load %}`) | `@bp.app_template_filter("utc")` | A Thymeleaf dialect or utility object | `app_template_filter` registers it app-wide, even though it's declared on a blueprint. No `{% load %}` needed. |
 | `LiveServerTestCase` | `werkzeug.serving.make_server(host, 0, app, threaded=True)` in a thread | `@SpringBootTest(webEnvironment = RANDOM_PORT)` | Port 0 picks a free port. The server's threads can't share the test's transaction, so browser tests get their own database (ADR-0013). |
+| `django.contrib.auth` + `@login_required` | `bp.before_request(require_admin)`: one function guards every view of a blueprint | A Spring Security filter chain on a path | Flask has no auth built in. One admin with a password hash and a flag in `flask.session` is enough here (ADR-0012). |
+| `CsrfViewMiddleware` + `{% csrf_token %}` | Nothing built in; Flightlog's `check_csrf` in `before_request` and a `csrf_token()` template global | Spring Security's `CsrfFilter` | The synchroniser-token pattern, about 20 lines. Flask-WTF's `CSRFProtect` is the library option. |
+| `messages.success(request, ...)` | `flash(message, category)` + `get_flashed_messages(with_categories=True)` | `RedirectAttributes.addFlashAttribute` | Stored in the session cookie until the next page reads it, which is what makes Post/Redirect/Get show a message. |
+| A template context processor | `@bp.app_context_processor` returning a dict | `@ControllerAdvice` + `@ModelAttribute` | Values or functions every template can use, such as `csrf_token()` and `is_admin`. |
+| `make_password` / `check_password` | `werkzeug.security.generate_password_hash` / `check_password_hash` | `PasswordEncoder` (`SCryptPasswordEncoder`) | Scrypt by default in Werkzeug 3, with the method and salt in the stored string. The comparison is constant-time. |
 | `django.test.Client` | `app.test_client()`, `app.test_cli_runner()` | `MockMvc` | Make a `client` fixture in `conftest.py` from `create_app(test_config)`. |
 
 ## Things that bite
@@ -34,6 +39,8 @@ Flask is a small core plus your own choices. Django gives you the house; Flask g
 - **`flask.session` is a signed cookie,** not server-side storage, and has nothing to do with the SQLAlchemy session. Don't mix them up in an interview answer.
 - **A blueprint's 404/405 handler doesn't fire for unknown URLs.** `@bp.errorhandler(404)` only handles an `abort(404)` raised inside that blueprint's own views. When no route matches, Flask doesn't know which blueprint the URL was meant for (`request.blueprints` is `[]`), so `/ingest/nope` falls through to the app-level handler. Decide JSON vs. HTML there, by path prefix.
 - **Autoescaping depends on the file extension.** Jinja escapes `{{ }}` in `.html`, `.xml` and `.htm` templates by default, but not in `render_template_string` or a `.txt` template. Untrusted text, like hook payloads, must only go through `.html` templates and never through `|safe`.
+- **`app.config.setdefault()` does nothing for Flask's own keys.** `SESSION_COOKIE_SAMESITE`, `SESSION_COOKIE_SECURE` and `PERMANENT_SESSION_LIFETIME` are already in the default config, so `setdefault` keeps Flask's values. Set them with `config.update()` before `from_prefixed_env()`, so the environment can still override them. A cookie test caught this.
+- **A session cookie isn't permanent unless you say so.** Without `session.permanent = True`, `PERMANENT_SESSION_LIFETIME` is ignored and the cookie lasts until the browser closes.
 
 ## Interview angles
 

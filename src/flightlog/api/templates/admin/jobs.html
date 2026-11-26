@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Failed jobs{% endblock %}
+{% block content %}
+<h1>Failed jobs</h1>
+<p class="muted">The worker gave up on these after five attempts. Fix the cause, then retry: the job is due at once, with a fresh set of attempts.</p>
+
+{% if failed %}
+<div class="table-wrap">
+<table class="jobs">
+  <thead>
+    <tr>
+      <th scope="col">Job</th>
+      <th scope="col">Event</th>
+      <th scope="col">Failed</th>
+      <th scope="col">Attempts</th>
+      <th scope="col">Last error</th>
+      <th scope="col"><span class="visually-hidden">Action</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for job in failed %}
+    <tr>
+      <td>#{{ job.job_id }} <span class="muted">{{ job.kind }}</span></td>
+      <td>{{ job.source }} · {{ job.event_type }}<br><span class="muted">{{ job.occurred_at | utc }}</span></td>
+      <td>{{ job.failed_at | utc }}</td>
+      <td>{{ job.attempts }}</td>
+      <td><code>{{ job.last_error or "—" }}</code></td>
+      <td>
+        <form method="post" action="{{ url_for('admin.retry', job_id=job.job_id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" aria-label="Retry job {{ job.job_id }}">Retry</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="empty">No failed jobs.</p>
+{% endif %}
+{% endblock %}

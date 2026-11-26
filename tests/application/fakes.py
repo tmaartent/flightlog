@@ -29,6 +29,7 @@ class FakeEventLog:
 class FakeJobQueue:
     def __init__(self) -> None:
         self.enqueued: list[Job] = []
+        self.failed: list[Job] = []
         self.latest_error: str | None = None
         self.delay: datetime.timedelta | None = None
         self.given_up: bool = False
@@ -51,6 +52,14 @@ class FakeJobQueue:
 
     def complete(self, job: Job) -> None:
         self.enqueued.remove(job)
+
+    def retry_now(self, job_id: int) -> bool:
+        job = next((j for j in self.failed if j.id == job_id), None)
+        if job is None:
+            return False
+        self.failed.remove(job)
+        self.enqueued.append(Job(job.id, job.event_id, job.kind, attempts=0))
+        return True
 
 
 class FakeAgentSessionRepository:
