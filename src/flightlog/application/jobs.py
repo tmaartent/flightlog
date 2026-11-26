@@ -19,6 +19,7 @@ def retry_delay(attempts: int) -> datetime.timedelta | None:
 class JobKind(StrEnum):
     APPLY_TO_SESSION = "apply_to_session"
     APPLY_PULL_REQUEST = "apply_pull_request"
+    SUMMARIZE_SESSION = "summarize_session"  # queued by apply_to_session (ADR-0018)
 
 
 def jobs_for(source: str, event_type: str) -> list[JobKind]:

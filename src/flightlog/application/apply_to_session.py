@@ -1,8 +1,9 @@
 import datetime
 
 from flightlog.application.events import unprocessed_event
+from flightlog.application.jobs import JobKind
 from flightlog.application.ports import UnitOfWork
-from flightlog.domain import AgentSession
+from flightlog.domain import AgentSession, AgentSessionStatus
 
 
 def apply_to_session(event_id: int, now: datetime.datetime, uow: UnitOfWork) -> None:
@@ -36,6 +37,10 @@ def apply_to_session(event_id: int, now: datetime.datetime, uow: UnitOfWork) -> 
         branch = (event.payload.get("git") or {}).get("branch")
         session.record(event.type, event.occurred_at, branch)
         event.agent_session_id = session.id
+        if session.status is AgentSessionStatus.STOPPED:
+            # SessionEnd, or a late event for a session that already ended: (re)compute its
+            # summary. Queued in this transaction, so it exists exactly when this commits.
+            uow.jobs.enqueue(event.id, JobKind.SUMMARIZE_SESSION)
     event.processed_at = now
 
 

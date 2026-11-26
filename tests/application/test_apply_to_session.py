@@ -5,6 +5,7 @@ import datetime
 import pytest
 
 from flightlog.application.apply_to_session import apply_to_session, repo_name
+from flightlog.application.jobs import JobKind
 from flightlog.contracts.ingest import CLAUDE
 from flightlog.domain import AgentSessionStatus, RecordedEvent
 from tests.application.fakes import FakeUnitOfWork
@@ -143,3 +144,43 @@ def test_the_use_case_leaves_the_commit_to_the_worker():
 )
 def test_repo_name_is_the_last_folder(cwd, expected):
     assert repo_name(cwd) == expected
+
+
+# --- the summary job (M5, ADR-0018) ---------------------------------------------------------
+
+
+def summarize_jobs(uow: FakeUnitOfWork) -> list[int]:
+    return [j.event_id for j in uow.jobs.enqueued if j.kind is JobKind.SUMMARIZE_SESSION]
+
+
+def test_session_end_queues_its_summary():
+    uow = FakeUnitOfWork()
+    start = record(uow, "SessionStart", T0)
+    end = record(uow, "SessionEnd", T0 + datetime.timedelta(minutes=5))
+
+    apply_to_session(start, NOW, uow)
+    assert summarize_jobs(uow) == []
+    apply_to_session(end, NOW, uow)
+
+    assert summarize_jobs(uow) == [end]
+
+
+def test_a_late_event_for_a_stopped_session_queues_the_summary_again():
+    uow = FakeUnitOfWork()
+    end = record(uow, "SessionEnd", T0 + datetime.timedelta(minutes=5))
+    late = record(uow, "PostToolUse", T0 + datetime.timedelta(minutes=1), tool_name="Edit")
+
+    apply_to_session(end, NOW, uow)
+    apply_to_session(late, NOW, uow)
+
+    assert summarize_jobs(uow) == [end, late]
+
+
+def test_applying_an_event_twice_queues_its_summary_once():
+    uow = FakeUnitOfWork()
+    end = record(uow, "SessionEnd", T0)
+
+    apply_to_session(end, NOW, uow)
+    apply_to_session(end, NOW, uow)  # at least once: the second run finds it processed
+
+    assert summarize_jobs(uow) == [end]

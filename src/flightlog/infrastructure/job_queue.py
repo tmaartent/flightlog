@@ -1,6 +1,7 @@
 import datetime
 
 from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from flightlog.application.jobs import Job, JobKind
@@ -17,6 +18,16 @@ class SqlJobQueue:
 
     def enqueue(self, event_id: int, kind: JobKind) -> None:
         self._session.execute(insert(event_jobs).values(event_log_id=event_id, kind=kind.value))
+
+    def enqueue_unless_queued(self, event_id: int, kind: JobKind) -> bool:
+        # The unique (event_log_id, kind) decides, in one statement: no check-then-insert race.
+        statement = (
+            pg_insert(event_jobs)
+            .values(event_log_id=event_id, kind=kind.value)
+            .on_conflict_do_nothing(index_elements=["event_log_id", "kind"])
+            .returning(event_jobs.c.id)
+        )
+        return self._session.scalar(statement) is not None
 
     def retry_later(self, job: Job, error: str, delay: datetime.timedelta) -> None:
         self._session.execute(

@@ -41,6 +41,7 @@ def create_app(test_config=None):
         rate_limits,
         read_api,
         report,
+        summaries,
         worker,
     )
     from flightlog.infrastructure import db
@@ -80,6 +81,7 @@ def create_app(test_config=None):
     app.register_blueprint(read_api.bp)
     app.register_blueprint(connectors.bp)
     app.register_blueprint(report.bp)
+    app.register_blueprint(summaries.bp)
     rate_limits.init_app(app)
     audit.init_app(app)
 

@@ -5,6 +5,7 @@ from types import TracebackType
 from typing import Self
 
 from flightlog.application.jobs import Job, JobKind
+from flightlog.contracts.digest import DigestEvent, SessionDigest
 from flightlog.contracts.sessions import LinkedPullRequest, SessionSummary
 from flightlog.contracts.timeline import SessionEvent
 from flightlog.domain import AgentSession, Connector, PullRequest, RecordedEvent
@@ -49,6 +50,12 @@ class FakeJobQueue:
     def give_up(self, job: Job, error: str) -> None:
         self.latest_error = error
         self.given_up = True
+
+    def enqueue_unless_queued(self, event_id: int, kind: JobKind) -> bool:
+        if any((j.event_id, j.kind) == (event_id, kind) for j in self.enqueued):
+            return False
+        self.enqueue(event_id, kind)
+        return True
 
     def complete(self, job: Job) -> None:
         self.enqueued.remove(job)
@@ -104,6 +111,28 @@ class FakeConnectorRepository:
         self.connectors.append(connector)
 
 
+class FakeDigestRepository:
+    def __init__(self) -> None:
+        self.sessions: dict[int, tuple] = {}
+        self.events: dict[int, list[DigestEvent]] = {}
+        self.saved: dict[int, SessionDigest] = {}
+        self.stale: list[int] = []
+        self.stale_asked: list[int] = []
+
+    def session(self, agent_session_id: int):
+        return self.sessions.get(agent_session_id)
+
+    def source_events(self, agent_session_id: int) -> list[DigestEvent]:
+        return self.events.get(agent_session_id, [])
+
+    def save(self, digest: SessionDigest) -> None:
+        self.saved[digest.agent_session_id] = digest
+
+    def stale_sessions(self, rules_version: int) -> list[int]:
+        self.stale_asked.append(rules_version)
+        return self.stale
+
+
 class FakeUnitOfWork:
     def __init__(self) -> None:
         self.events = FakeEventLog()
@@ -111,6 +140,7 @@ class FakeUnitOfWork:
         self.agent_sessions = FakeAgentSessionRepository()
         self.pull_requests = FakePullRequestRepository()
         self.connectors = FakeConnectorRepository()
+        self.digests = FakeDigestRepository()
         self.commits = 0
         self.rollbacks = 0
 
