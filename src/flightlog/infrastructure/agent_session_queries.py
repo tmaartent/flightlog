@@ -4,6 +4,7 @@ from collections import defaultdict
 from sqlalchemy import and_, exists, func, select, tuple_
 from sqlalchemy.orm import Session, aliased
 
+from flightlog.contracts.digest import DigestedSession, SessionDigest
 from flightlog.contracts.report import ReportSession
 from flightlog.contracts.sessions import (
     LinkedPullRequest,
@@ -16,7 +17,13 @@ from flightlog.contracts.sessions import (
 from flightlog.contracts.timeline import SessionEvent
 from flightlog.domain import PullRequestState
 from flightlog.infrastructure.db import get_session
-from flightlog.infrastructure.tables import agent_sessions, event_jobs, event_logs, pull_requests
+from flightlog.infrastructure.tables import (
+    agent_sessions,
+    event_jobs,
+    event_logs,
+    pull_requests,
+    session_digests,
+)
 
 
 class SqlAgentSessionQueries:
@@ -109,6 +116,56 @@ class SqlReportQueries:
             for row in self._session.execute(statement):
                 events[row.session_id].append(_session_event(row))
         return events
+
+
+class SqlDigestQueries:
+    """DigestQueries on PostgreSQL (ADR-0018): sessions with their digest and linked PRs."""
+
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def recent(self, repo: str, limit: int) -> list[DigestedSession]:
+        s, d = agent_sessions, session_digests
+        rows = self._session.execute(
+            select(s.c.id, s.c.started_at, s.c.ended_at, s.c.status, s.c.branch, d)
+            .select_from(s)
+            .outerjoin(d, d.c.agent_session_id == s.c.id)
+            .where(s.c.repo == repo)
+            .order_by(s.c.started_at.desc(), s.c.id.desc())
+            .limit(limit)
+        ).all()
+        linked: dict[int, list[LinkedPullRequest]] = defaultdict(list)
+        if rows:
+            statement = _linked_pull_requests().where(s.c.id.in_([row.id for row in rows]))
+            for row in self._session.execute(statement):
+                linked[row.session_id].append(_linked_pull_request(row))
+        return [
+            DigestedSession(
+                id=row.id,
+                started_at=row.started_at,
+                ended_at=row.ended_at,
+                status=row.status,
+                branch=row.branch,
+                pull_requests=linked[row.id],
+                digest=_digest(row) if row.agent_session_id is not None else None,
+            )
+            for row in rows
+        ]
+
+
+def _digest(row) -> SessionDigest:
+    return SessionDigest(
+        agent_session_id=row.agent_session_id,
+        files_touched=row.files_touched,
+        files_outside_repo=row.files_outside_repo,
+        edits=row.edits,
+        test_runs=row.test_runs,
+        tool_calls=row.tool_calls,
+        tools=row.tools,
+        duration_seconds=row.duration_seconds,
+        event_count=row.event_count,
+        rules_version=row.rules_version,
+    )
 
 
 def _linked_pull_requests():
@@ -236,3 +293,7 @@ def request_agent_session_queries() -> SqlAgentSessionQueries:
 
 def request_report_queries() -> SqlReportQueries:
     return SqlReportQueries(get_session())
+
+
+def request_digest_queries() -> SqlDigestQueries:
+    return SqlDigestQueries(get_session())

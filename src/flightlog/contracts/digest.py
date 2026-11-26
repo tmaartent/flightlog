@@ -7,6 +7,10 @@ a prompt, file content or a tool's response: those can carry secrets and injecte
 
 import datetime
 from dataclasses import dataclass
+from enum import StrEnum
+
+from flightlog.contracts.sessions import LinkedPullRequest
+from flightlog.domain import AgentSessionStatus
 
 
 @dataclass(frozen=True)
@@ -34,3 +38,38 @@ class SessionDigest:
     duration_seconds: int | None  # None while the session has no end
     event_count: int  # how many events it was computed from: a later digest has more
     rules_version: int
+
+
+@dataclass(frozen=True)
+class DigestedSession:
+    """A session with its stored digest (if computed yet) and its linked PRs, as read."""
+
+    id: int
+    started_at: datetime.datetime
+    ended_at: datetime.datetime | None
+    status: AgentSessionStatus
+    branch: str | None
+    pull_requests: list[LinkedPullRequest]
+    digest: SessionDigest | None
+
+
+class SummaryState(StrEnum):
+    READY = "ready"
+    PENDING = "pending"  # stopped, the worker hasn't summarized it yet
+    RUNNING = "running"  # still active: no summary until it ends
+
+
+@dataclass(frozen=True)
+class RecentSession:
+    """One session as `flask sessions` and the MCP tools show it (ADR-0018)."""
+
+    id: int
+    started_at: datetime.datetime
+    ended_at: datetime.datetime | None
+    status: AgentSessionStatus
+    branch: str | None
+    goal: str | None  # the newest PR's title, or the branch made readable; cleaned text
+    pull_request: LinkedPullRequest | None  # the newest linked PR
+    pull_request_title: str | None  # its title, cleaned
+    state: SummaryState
+    digest: SessionDigest | None

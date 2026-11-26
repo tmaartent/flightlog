@@ -6,7 +6,7 @@ from flightlog.application.jobs import Job, JobKind
 from flightlog.contracts.admin import FailedJob
 from flightlog.contracts.audit import AuditEntry, AuditFilter, AuditPage
 from flightlog.contracts.connectors import ConnectorInfo
-from flightlog.contracts.digest import DigestEvent, SessionDigest
+from flightlog.contracts.digest import DigestedSession, DigestEvent, SessionDigest
 from flightlog.contracts.report import ReportSession
 from flightlog.contracts.sessions import (
     LinkedPullRequest,
@@ -207,6 +207,14 @@ class ReportQueries(Protocol):
 
     def events_of(self, session_ids: list[int]) -> dict[int, list[SessionEvent]]:
         """The applied events of these sessions, in timeline order, keyed by session id."""
+        ...
+
+
+class DigestQueries(Protocol):
+    """Read side of the digests (ADR-0018), for `flask sessions` and the MCP tools."""
+
+    def recent(self, repo: str, limit: int) -> list[DigestedSession]:
+        """The repo's newest sessions, newest first, each with its digest and linked PRs."""
         ...
 
 

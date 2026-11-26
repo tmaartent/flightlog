@@ -41,12 +41,14 @@ def create_app(test_config=None):
         rate_limits,
         read_api,
         report,
+        sessions_cli,
         summaries,
         worker,
     )
     from flightlog.infrastructure import db
     from flightlog.infrastructure.agent_session_queries import (
         request_agent_session_queries,
+        request_digest_queries,
         request_report_queries,
     )
     from flightlog.infrastructure.audit_log import new_audit_log, request_audit_queries
@@ -64,6 +66,7 @@ def create_app(test_config=None):
     app.extensions["agent_session_queries"] = request_agent_session_queries
     app.extensions["job_queries"] = request_job_queries
     app.extensions["report_queries"] = request_report_queries
+    app.extensions["digest_queries"] = request_digest_queries
     app.extensions["pdf_renderer"] = ChromiumPdfRenderer
     app.extensions["connector_queries"] = request_connector_queries
     app.extensions["audit_log"] = new_audit_log
@@ -82,6 +85,7 @@ def create_app(test_config=None):
     app.register_blueprint(connectors.bp)
     app.register_blueprint(report.bp)
     app.register_blueprint(summaries.bp)
+    app.register_blueprint(sessions_cli.bp)
     rate_limits.init_app(app)
     audit.init_app(app)
 
