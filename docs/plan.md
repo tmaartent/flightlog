@@ -59,7 +59,7 @@ Tasks
 2. Rate limiting with Flask-Limiter, keyed on the connector, not the IP. Done: one shared limit for the API per connector, per IP without a valid key, and on `POST /login`. See [ADR-0014](adr/0014-rate-limits-per-connector.md).
 3. Audit log table: who (connector), what (route, method), which object, when, outcome. Written for every API call and every admin action. Done: an app-level `after_request`, fail-open on its own transaction, `/admin/audit`, and the revoke button. See [ADR-0015](adr/0015-audit-log.md).
 4. Weekly report: a Jinja template rendered to PDF with Playwright's `page.pdf()` in headless Chromium (`flask --app flightlog report --week 2026-W46`). See [ADR-0006](adr/0006-playwright-for-e2e-and-pdf.md). Done: rendered in-process with `set_content`, one A4 page per repo (rows capped at 20), a preview at `/reports/<week>`. See [ADR-0016](adr/0016-weekly-report.md).
-5. Playwright end-to-end test: start the app, post a signed event, run the worker once, open the dashboard and assert the session appears.
+5. Playwright end-to-end test: start the app, post a signed event, run the worker once, open the dashboard and assert the session appears. Done: `flask run`, the hook script, `flask worker --once` and `flask connector create` as separate processes, two journeys (hook to dashboard, API key to audit log). See [ADR-0013](adr/0013-playwright-against-a-live-server-on-its-own-database.md), "The full stack".
 6. `Dockerfile` and app + worker services in `docker-compose.yml`.
 
 Done when
