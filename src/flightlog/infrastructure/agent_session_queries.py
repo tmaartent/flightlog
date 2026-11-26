@@ -4,7 +4,7 @@ from collections import defaultdict
 from sqlalchemy import and_, exists, func, select, tuple_
 from sqlalchemy.orm import Session, aliased
 
-from flightlog.contracts.digest import DigestedSession, SessionDigest
+from flightlog.contracts.digest import DigestedSession, SessionDigest, SummaryFilter
 from flightlog.contracts.report import ReportSession
 from flightlog.contracts.sessions import (
     LinkedPullRequest,
@@ -135,6 +135,19 @@ class SqlDigestQueries:
     def one(self, session_id: int) -> DigestedSession | None:
         found = self._sessions(agent_sessions.c.id == session_id, limit=1)
         return found[0] if found else None
+
+    def page(self, summary_filter: SummaryFilter, limit: int) -> list[DigestedSession]:
+        s = agent_sessions
+        conditions = [s.c.repo == summary_filter.repo]
+        if summary_filter.path is not None:
+            conditions.append(session_digests.c.files_touched.contains([summary_filter.path]))
+        if summary_filter.since is not None:
+            conditions.append(s.c.started_at >= summary_filter.since)
+        if summary_filter.after is not None:
+            after = summary_filter.after
+            # The same keyset as the session list (ADR-0010): matches the ORDER BY exactly.
+            conditions.append(tuple_(s.c.started_at, s.c.id) < tuple_(after.started_at, after.id))
+        return self._sessions(*conditions, limit=limit)
 
     def _sessions(self, *conditions, limit: int) -> list[DigestedSession]:
         s, d = agent_sessions, session_digests

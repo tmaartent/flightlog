@@ -37,7 +37,7 @@ Questions and short explanations stay in the main session: a subagent starts col
   - `infrastructure/`: SQLAlchemy tables, imperative mapping, repositories, unit of work, request session.
   - `api/`: Flask blueprints and CLI; never imports infrastructure (adapters come from `app.extensions`).
   - `__init__.py`: `create_app`, the composition root that wires the layers together.
-- Other folders: `tests/` (one subfolder per layer), `migrations/` (Alembic, against `infrastructure.tables.metadata`), `scripts/` (the hook client).
+- Other folders: `tests/` (one subfolder per layer), `migrations/` (Alembic, against `infrastructure.tables.metadata`), `scripts/` (the hook client), `client/` (`flightlog-client`, the typed read API client: its own package, standard library only, ADR-0020).
 - SQLAlchemy 2 style: `Table` definitions in `infrastructure/tables.py`, imperative mapping onto the domain classes, `select()` queries, no legacy `Query` API.
 - Every schema change is an Alembic migration, reviewed by hand. Autogenerate is a draft, never the final word.
 - Tests: pytest. Domain and application tests without Flask or a database (fakes for the ports); infrastructure and API tests against a real PostgreSQL (docker compose); Playwright for end-to-end.
@@ -48,7 +48,7 @@ Questions and short explanations stay in the main session: a subagent starts col
 ```bash
 docker compose up -d db                 # PostgreSQL on localhost:5433
 python -m venv .venv && .venv/Scripts/activate
-pip install -e ".[dev]" && playwright install chromium
+pip install -e ".[dev]" -e client && playwright install chromium
 alembic upgrade head
 flask --app flightlog run --debug       # http://localhost:5000
 docker compose up -d --build --wait     # the whole stack in containers, http://localhost:8000

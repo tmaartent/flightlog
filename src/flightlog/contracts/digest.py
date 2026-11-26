@@ -9,7 +9,7 @@ import datetime
 from dataclasses import dataclass
 from enum import StrEnum
 
-from flightlog.contracts.sessions import LinkedPullRequest
+from flightlog.contracts.sessions import LinkedPullRequest, SessionCursor
 from flightlog.domain import AgentSessionStatus
 
 
@@ -73,3 +73,20 @@ class RecentSession:
     pull_request_title: str | None  # its title, cleaned
     state: SummaryState
     digest: SessionDigest | None
+
+
+@dataclass(frozen=True)
+class SummaryFilter:
+    """Which summaries the read API lists (ADR-0020): one repo, newest first, keyset-paged."""
+
+    repo: str
+    path: str | None = None  # only sessions whose digest lists this file
+    since: datetime.datetime | None = None  # started at or after
+    after: SessionCursor | None = None  # the end of the previous page
+    limit: int = 25
+
+
+@dataclass(frozen=True)
+class SummaryPage:
+    summaries: list[RecentSession]
+    next_cursor: SessionCursor | None  # None on the last page

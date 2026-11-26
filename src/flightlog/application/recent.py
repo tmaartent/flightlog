@@ -8,8 +8,14 @@ import re
 import unicodedata
 
 from flightlog.application.ports import DigestQueries
-from flightlog.contracts.digest import DigestedSession, RecentSession, SummaryState
-from flightlog.contracts.sessions import LinkedPullRequest
+from flightlog.contracts.digest import (
+    DigestedSession,
+    RecentSession,
+    SummaryFilter,
+    SummaryPage,
+    SummaryState,
+)
+from flightlog.contracts.sessions import LinkedPullRequest, SessionCursor
 from flightlog.domain import AgentSessionStatus
 
 GOAL_LIMIT = 72
@@ -28,6 +34,18 @@ def attempts_on(repo: str, path: str, last: int, queries: DigestQueries) -> list
 def session_summary(session_id: int, queries: DigestQueries) -> RecentSession | None:
     found = queries.one(session_id)
     return _recent(found) if found else None
+
+
+def summary_page(summary_filter: SummaryFilter, queries: DigestQueries) -> SummaryPage:
+    """One page of summaries for the read API (ADR-0020). Keyset-paged, like the sessions."""
+    # One row more than the page: if it comes back, there is a next page.
+    found = queries.page(summary_filter, summary_filter.limit + 1)
+    shown = found[: summary_filter.limit]
+    last = shown[-1] if len(found) > summary_filter.limit else None
+    return SummaryPage(
+        summaries=[_recent(s) for s in shown],
+        next_cursor=SessionCursor(last.started_at, last.id) if last else None,
+    )
 
 
 def _recent(session: DigestedSession) -> RecentSession:

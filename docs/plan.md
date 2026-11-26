@@ -83,7 +83,7 @@ Tasks
     - `session_summary(id)`: the stored summary of one session
 
     Done: `flask --app flightlog mcp` over stdio from `.mcp.json`, on `mcp` 2.x's `MCPServer`; Flightlog's own calls filtered in the hook script and ingest. See [ADR-0019](adr/0019-read-only-mcp-server.md).
-4. A typed Python client, for agents that write code instead of calling tools one by one ("code execution with MCP"). The agent imports it in a script, filters and joins the results there, and only the answer reaches its context. Claude Code already runs code, so there's no sandbox to build. Same functions as the MCP tools, plus the list queries behind them, so it can answer questions the three tools can't ("which files led to a reverted PR most often this month?"). It talks to the M4 read API with its own API key (ADR-0005), never to the database. Package layout, and when the MCP tools or the client pay off, go in an ADR when the task starts.
+4. A typed Python client, for agents that write code instead of calling tools one by one ("code execution with MCP"). The agent imports it in a script, filters and joins the results there, and only the answer reaches its context. Claude Code already runs code, so there's no sandbox to build. Same functions as the MCP tools, plus the list queries behind them, so it can answer questions the three tools can't ("which files led to a reverted PR most often this month?"). It talks to the M4 read API with its own API key (ADR-0005), never to the database. Package layout, and when the MCP tools or the client pay off, go in an ADR when the task starts. Done: `flightlog-client` in `client/` (standard library only), `/api/v1/summaries` and `/sessions/<id>/summary`, and `client/examples/reverted_files.py`. See [ADR-0020](adr/0020-python-client.md).
 
 Rules
 - **Structured output only** (counts, paths, outcomes, ids). Never raw transcript or tool text: old sessions contain content from web pages and files, and feeding that back would bring injected instructions back with it.
@@ -97,7 +97,7 @@ Done when
 - [ ] A new Claude Code session can call `recent_sessions` and gets structured data back
 - [x] Calls to the Flightlog MCP tools don't show up as events in Flightlog
 - [x] The MCP server imports nothing from `infrastructure` (import-linter)
-- [ ] A script using the client answers a question across sessions and prints only the result; the client needs an API key and has no database access
+- [x] A script using the client answers a question across sessions and prints only the result; the client needs an API key and has no database access
 
 ## Later (only if there's time)
 
