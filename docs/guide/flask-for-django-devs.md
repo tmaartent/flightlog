@@ -35,6 +35,7 @@ Flask is a small core plus your own choices. Django gives you the house; Flask g
 | `render_to_string("report.html", ctx)` | `render_template("report/weekly.html", report=...)` in an app context; inside `app.test_request_context()` when a context processor reads `session` | Thymeleaf's `TemplateEngine.process()` | Flightlog renders the report in-process and hands the string to Chromium with `page.set_content()`: no server, no login (ADR-0016). |
 | `gunicorn myproject.wsgi` | `gunicorn "flightlog:create_app()"`: gunicorn calls the factory once per worker process | An embedded Tomcat in the Spring Boot jar | Same server as for Django. `flask run` is the development server only. |
 | `SECURE_PROXY_SSL_HEADER`, `USE_X_FORWARDED_HOST` | `app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)` | `server.forward-headers-strategy=native` | Only with a proxy you control in front; Flightlog switches it on with `FLASK_PROXY_COUNT` (ADR-0017). |
+| `path("…", view, name="session_summary")` | `@bp.get("/sessions/<int:id>/summary", endpoint="session_summary")` | `@GetMapping(name = …)` | The endpoint defaults to the function's name. Set it when the function name is chosen for another reason (here: not shadowing the use case), since `url_for` and the audit log use the endpoint. |
 | `django.test.Client` | `app.test_client()`, `app.test_cli_runner()` | `MockMvc` | Make a `client` fixture in `conftest.py` from `create_app(test_config)`. |
 
 ## Things that bite

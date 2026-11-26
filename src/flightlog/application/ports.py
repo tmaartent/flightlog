@@ -6,7 +6,12 @@ from flightlog.application.jobs import Job, JobKind
 from flightlog.contracts.admin import FailedJob
 from flightlog.contracts.audit import AuditEntry, AuditFilter, AuditPage
 from flightlog.contracts.connectors import ConnectorInfo
-from flightlog.contracts.digest import DigestedSession, DigestEvent, SessionDigest
+from flightlog.contracts.digest import (
+    DigestedSession,
+    DigestEvent,
+    SessionDigest,
+    SummaryFilter,
+)
 from flightlog.contracts.report import ReportSession
 from flightlog.contracts.sessions import (
     LinkedPullRequest,
@@ -223,6 +228,10 @@ class DigestQueries(Protocol):
 
     def one(self, session_id: int) -> DigestedSession | None:
         """One session with its digest and linked PRs, or None."""
+        ...
+
+    def page(self, summary_filter: SummaryFilter, limit: int) -> list[DigestedSession]:
+        """Sessions matching the filter, newest first, after its cursor, at most `limit`."""
         ...
 
 

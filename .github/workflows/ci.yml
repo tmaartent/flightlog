@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      - run: pip install -e ".[dev]"
+      - run: pip install -e ".[dev]" -e client   # the client is its own package (ADR-0020)
       - run: playwright install --with-deps chromium
       - run: ruff check . && ruff format --check .
       - run: lint-imports

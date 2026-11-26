@@ -15,9 +15,12 @@ from werkzeug.exceptions import BadRequest, NotFound
 from flightlog.api.audit import audit_object
 from flightlog.api.bearer import current_connector
 from flightlog.api.session_filter import parse_session_filter
-from flightlog.application.ports import AgentSessionQueries
+from flightlog.api.session_json import session_json
+from flightlog.application.ports import AgentSessionQueries, DigestQueries
+from flightlog.application.recent import session_summary, summary_page
 from flightlog.application.timeline import session_timeline
-from flightlog.contracts.sessions import LinkedPullRequest, SessionSummary
+from flightlog.contracts.digest import SummaryFilter
+from flightlog.contracts.sessions import LinkedPullRequest, SessionCursor, SessionSummary
 from flightlog.contracts.timeline import TimelineEntry
 
 bp = Blueprint("read_api", __name__, url_prefix="/api/v1")
@@ -60,6 +63,60 @@ def session(session_id: int) -> ResponseReturnValue:
         "test_runs": found.test_runs,
         "entries": [entry_json(e) for e in found.entries],
     }
+
+
+@bp.get("/summaries")
+def summaries() -> ResponseReturnValue:
+    """Stored session summaries of one repo, newest first, keyset-paged (ADR-0020)."""
+    page = summary_page(parse_summary_filter(), digest_queries())
+    return {
+        "summaries": [session_json(s) for s in page.summaries],
+        "next": page.next_cursor.to_token() if page.next_cursor else None,
+    }
+
+
+# endpoint= keeps the audit log readable; the function name only avoids the use case's name.
+@bp.get("/sessions/<int:session_id>/summary", endpoint="session_summary")
+def session_summary_route(session_id: int) -> ResponseReturnValue:
+    audit_object("session", session_id)
+    found = session_summary(session_id, digest_queries())
+    if found is None:
+        raise NotFound(f"no session with id {session_id}")
+    return {"session": session_json(found)}
+
+
+def parse_summary_filter() -> SummaryFilter:
+    args = request.args
+    repo = args.get("repo") or None
+    if repo is None:
+        raise BadRequest("repo is required")
+    since = args.get("since") or None
+    try:
+        since_at = (
+            datetime.datetime.combine(
+                datetime.date.fromisoformat(since), datetime.time(), datetime.UTC
+            )
+            if since
+            else None
+        )
+    except ValueError:
+        raise BadRequest("since must be a date like 2026-11-01") from None
+    after = args.get("after") or None
+    try:
+        cursor = SessionCursor.from_token(after) if after else None
+    except ValueError:
+        raise BadRequest("after is not a cursor from a previous page") from None
+    return SummaryFilter(
+        repo=repo,
+        path=args.get("path") or None,
+        since=since_at,
+        after=cursor,
+        limit=parse_limit(args.get("limit")),
+    )
+
+
+def digest_queries() -> DigestQueries:
+    return current_app.extensions["digest_queries"]()
 
 
 def queries() -> AgentSessionQueries:

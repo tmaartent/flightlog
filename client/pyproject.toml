@@ -1,0 +1,18 @@
+[project]
+name = "flightlog-client"
+version = "0.1.0"
+description = "A typed client for Flightlog's read API: past agent sessions, for scripts and agents."
+requires-python = ">=3.12"
+# Standard library only, on purpose (ADR-0020): agents import it in throwaway scripts, and it
+# must never bring a database driver along. It talks HTTP to the read API, nothing else.
+dependencies = []
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["flightlog_client"]
+
+[tool.setuptools.package-data]
+flightlog_client = ["py.typed"]
