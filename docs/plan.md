@@ -43,11 +43,11 @@ Goal: see what an agent did and what came of it.
 
 Tasks
 1. GitHub `pull_request` events: link a session to a PR through the branch name; the hook client reads the branch from `cwd`. Done: linked at read time, "reverted" derived from GitHub's revert PRs; `push` is recorded but not processed. See [ADR-0009](adr/0009-link-sessions-to-pull-requests-at-read-time.md).
-2. `dashboard` blueprint with Jinja templates: a session list (filter by repo, status) and a timeline per session: tool calls, files touched, test runs, the linked PR and its outcome.
+2. `dashboard` blueprint with Jinja templates: a session list (filter by repo, status) and a timeline per session: tool calls, files touched, test runs, the linked PR and its outcome. Done: keyset-paged list, timeline with masked commands, Playwright UI tests. See [ADR-0010](adr/0010-dashboard-read-models-and-session-timeline.md) and [ADR-0013](adr/0013-playwright-against-a-live-server-on-its-own-database.md).
 3. `failed` events visible on an admin page, with a "retry" button (POST, not GET).
 
 Done when
-- [ ] A session with a merged PR shows the PR and "merged"; a reverted PR shows "reverted"
+- [x] A session with a merged PR shows the PR and "merged"; a reverted PR shows "reverted"
 - [ ] The retry button re-queues a failed event, and the test proves it is processed
 
 ## M4 · Secure API, Playwright, Docker

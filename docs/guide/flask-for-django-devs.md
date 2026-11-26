@@ -18,6 +18,11 @@ Flask is a small core plus your own choices. Django gives you the house; Flask g
 | DRF serializers / `JsonResponse` | Return a `dict` or `list` → JSON automatically; `jsonify` for the rest | `ResponseEntity` | No serializer layer built in. Dataclasses or Pydantic if you need one. |
 | `Http404`, exception middleware | `abort(401)`, `@bp.errorhandler(...)`, `@app.errorhandler(HTTPException)` | `@ControllerAdvice` | Return JSON errors for API blueprints, HTML for the dashboard. |
 | `handler404` / `handler500` in the root `urls.py` | `app.register_error_handler(HTTPException, handle)` once in `create_app` | `@ControllerAdvice` with `@ExceptionHandler` | One app-level handler sees every HTTP error, also for URLs that match no route. Flightlog picks JSON for `/ingest` and `/api`, HTML otherwise. |
+| `TEMPLATES["DIRS"]`, `STATICFILES_DIRS` | `Flask(__name__, template_folder=..., static_folder=...)` | `spring.thymeleaf.prefix`, `/static` on the classpath | Paths are relative to the package. Flightlog keeps both under `api/`, the presentation layer, and lists them as package data so a wheel includes them. |
+| `request.GET["status"]` | `request.args.get("status")`, a `MultiDict` | `@RequestParam` | Missing keys give `None`, not an error. Raise `BadRequest` yourself for bad values, as `api/session_filter.py` does. |
+| `{% url "name" arg %}` / `reverse()` | `url_for("blueprint.endpoint", **values)` | `MvcUriComponentsBuilder` | Values that aren't route parameters become the query string, and `None` values are left out, which is handy for optional filters. |
+| A custom template filter (`@register.filter` + `{% load %}`) | `@bp.app_template_filter("utc")` | A Thymeleaf dialect or utility object | `app_template_filter` registers it app-wide, even though it's declared on a blueprint. No `{% load %}` needed. |
+| `LiveServerTestCase` | `werkzeug.serving.make_server(host, 0, app, threaded=True)` in a thread | `@SpringBootTest(webEnvironment = RANDOM_PORT)` | Port 0 picks a free port. The server's threads can't share the test's transaction, so browser tests get their own database (ADR-0013). |
 | `django.test.Client` | `app.test_client()`, `app.test_cli_runner()` | `MockMvc` | Make a `client` fixture in `conftest.py` from `create_app(test_config)`. |
 
 ## Things that bite
@@ -28,6 +33,7 @@ Flask is a small core plus your own choices. Django gives you the house; Flask g
 - **`debug=True` is not for production.** Run under gunicorn in Docker (`gunicorn "flightlog:create_app()"`).
 - **`flask.session` is a signed cookie,** not server-side storage, and has nothing to do with the SQLAlchemy session. Don't mix them up in an interview answer.
 - **A blueprint's 404/405 handler doesn't fire for unknown URLs.** `@bp.errorhandler(404)` only handles an `abort(404)` raised inside that blueprint's own views. When no route matches, Flask doesn't know which blueprint the URL was meant for (`request.blueprints` is `[]`), so `/ingest/nope` falls through to the app-level handler. Decide JSON vs. HTML there, by path prefix.
+- **Autoescaping depends on the file extension.** Jinja escapes `{{ }}` in `.html`, `.xml` and `.htm` templates by default, but not in `render_template_string` or a `.txt` template. Untrusted text, like hook payloads, must only go through `.html` templates and never through `|safe`.
 
 ## Interview angles
 
