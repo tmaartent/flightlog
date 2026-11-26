@@ -11,20 +11,30 @@ from collections.abc import Iterator
 import pytest
 from flask import Flask
 from playwright.sync_api import Page, expect
-from sqlalchemy import create_engine, make_url, text
+from sqlalchemy import create_engine, text
 from werkzeug.serving import make_server
 
 from tests.e2e.flows import log_in
-from tests.harness import TEST_DATABASE_URL, create_database_if_missing, make_app, migrate_to_head
-
-E2E_DATABASE_URL = (
-    make_url(TEST_DATABASE_URL).set(database="flightlog_e2e").render_as_string(hide_password=False)
+from tests.harness import (
+    E2E_DATABASE_URL,
+    create_database_if_missing,
+    make_app,
+    migrate_to_head,
 )
 
 # Everything a test can create. RESTART IDENTITY so ids don't leak between tests.
 TRUNCATE = text(
-    "TRUNCATE event_jobs, event_logs, pull_requests, agent_sessions RESTART IDENTITY CASCADE"
+    "TRUNCATE audit_log, connectors, event_jobs, event_logs, pull_requests, agent_sessions"
+    " RESTART IDENTITY CASCADE"
 )
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Keep each phase's report on the test item, so a fixture can see whether it failed."""
+    report = yield
+    setattr(item, f"report_{report.when}", report)
+    return report
 
 
 def pytest_collection_modifyitems(items):

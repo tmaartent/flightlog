@@ -20,6 +20,11 @@ TEST_DATABASE_URL = os.environ.get(
     "postgresql+psycopg://flightlog:flightlog@localhost:5433/flightlog_test",
 )
 
+# The browser tests' own database: their server runs outside the test transaction (ADR-0013).
+E2E_DATABASE_URL = (
+    make_url(TEST_DATABASE_URL).set(database="flightlog_e2e").render_as_string(hide_password=False)
+)
+
 TEST_GITHUB_SECRET = "test-github-secret"
 TEST_CLAUDE_SECRET = "test-claude-secret"
 TEST_ADMIN_PASSWORD = "correct horse battery staple"
