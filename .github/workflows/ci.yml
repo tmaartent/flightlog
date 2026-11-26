@@ -36,3 +36,28 @@ jobs:
         if: hashFiles('alembic.ini') != ''
       - run: pytest
         if: hashFiles('tests/**/*.py') != ''
+
+  # The whole stack in containers (ADR-0017): build both images, `up --wait`, smoke-test it.
+  compose:
+    runs-on: ubuntu-latest
+    env:
+      FLASK_SECRET_KEY: ci-secret-key
+      FLASK_GITHUB_WEBHOOK_SECRET: ci-github-secret
+      FLASK_CLAUDE_HOOK_SECRET: ci-hook-secret
+      E2E_COMPOSE_URL: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: pip install -e ".[dev]"   # pytest and the hook script, on the runner
+      - run: docker compose up -d --build --wait
+      - run: pytest -m compose tests/compose
+      - run: docker compose --profile tools build report
+      # The container runs as uid 10001; on a Linux host the bind-mounted folder must let it write.
+      - run: mkdir -m 777 reports && docker compose --profile tools run --rm report --week 2026-W48
+      - run: test -s reports/flightlog-2026-W48.pdf
+      - if: failure()
+        run: docker compose logs
+      - if: always()
+        run: docker compose --profile tools down -v

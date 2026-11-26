@@ -27,7 +27,7 @@ Flask-Limiter 4.1 checks limits in an **app-level** `before_request` (registered
 - **Storage `memory://`** by default (`RATELIMIT_STORAGE_URI`). The `Limiter` is created per app in `api/rate_limits.init_app`, so every test app starts with empty counters. `limits` has no PostgreSQL backend.
 
 ## Consequences
-- **Counters are per process.** With 4 gunicorn workers a connector can get up to 4× its limit, and a restart resets every counter. Task 6 (Docker) decides on Redis as a compose service (`RATELIMIT_STORAGE_URI=redis://…`): no code change, only the `redis` extra of `limits` as a dependency.
+- **Counters are per process** (in compose since ADR-0017 they are in Redis). With 4 gunicorn workers a connector can get up to 4× its limit, and a restart resets every counter. Task 6 (Docker) decides on Redis as a compose service (`RATELIMIT_STORAGE_URI=redis://…`): no code change, only the `redis` extra of `limits` as a dependency.
 - **Behind a reverse proxy every request has the proxy's IP,** so the per-IP buckets become one. Task 6 needs `ProxyFix` when there is a proxy in front.
 - **The e2e suite** shares one live server and logs in more than 5 times a minute, so its app sets `RATELIMIT_LOGIN` high.
 - **Over the login limit, even the right password gets a 429** until the window has passed. The 429 comes before the password check, so it says nothing about the password.

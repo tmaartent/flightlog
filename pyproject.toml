@@ -8,9 +8,10 @@ dependencies = [
     "sqlalchemy>=2.1,<3",
     "alembic>=1.20,<2",
     "psycopg[binary]>=3.3,<4",
-    "flask-limiter>=4.1,<5",
+    "flask-limiter[redis]>=4.1,<5",  # Redis for shared rate-limit counters (ADR-0017)
     "playwright>=1.65,<2",
     "python-dotenv>=1.2",
+    "gunicorn>=23",  # the WSGI server in the container
 ]
 
 [project.optional-dependencies]
@@ -42,6 +43,7 @@ pythonpath = [".", "scripts"]
 markers = [
     "db: needs the PostgreSQL from docker compose",
     "e2e: Playwright end-to-end test against a running app",
+    "compose: smoke test against `docker compose up` (needs E2E_COMPOSE_URL)",
 ]
 
 [tool.ruff]

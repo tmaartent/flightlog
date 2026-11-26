@@ -60,13 +60,13 @@ Tasks
 3. Audit log table: who (connector), what (route, method), which object, when, outcome. Written for every API call and every admin action. Done: an app-level `after_request`, fail-open on its own transaction, `/admin/audit`, and the revoke button. See [ADR-0015](adr/0015-audit-log.md).
 4. Weekly report: a Jinja template rendered to PDF with Playwright's `page.pdf()` in headless Chromium (`flask --app flightlog report --week 2026-W46`). See [ADR-0006](adr/0006-playwright-for-e2e-and-pdf.md). Done: rendered in-process with `set_content`, one A4 page per repo (rows capped at 20), a preview at `/reports/<week>`. See [ADR-0016](adr/0016-weekly-report.md).
 5. Playwright end-to-end test: start the app, post a signed event, run the worker once, open the dashboard and assert the session appears. Done: `flask run`, the hook script, `flask worker --once` and `flask connector create` as separate processes, two journeys (hook to dashboard, API key to audit log). See [ADR-0013](adr/0013-playwright-against-a-live-server-on-its-own-database.md), "The full stack".
-6. `Dockerfile` and app + worker services in `docker-compose.yml`.
+6. `Dockerfile` and app + worker services in `docker-compose.yml`. Done: runtime and report images, migrate and Redis services, ProxyFix behind a setting, a compose smoke test in CI. See [ADR-0017](adr/0017-containers.md).
 
 Done when
-- [ ] No key, wrong key or revoked key → 401; over the limit → 429 with `Retry-After`
-- [ ] Every API call leaves one audit row
-- [ ] The report PDF exists and has one page per repo
-- [ ] `docker compose up` runs the whole stack; CI is green
+- [x] No key, wrong key or revoked key → 401; over the limit → 429 with `Retry-After`
+- [x] Every API call leaves one audit row
+- [x] The report PDF exists and has one page per repo
+- [x] `docker compose up` runs the whole stack; CI is green
 
 ## M5 · Agent in the loop
 

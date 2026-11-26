@@ -16,7 +16,7 @@ bp = Blueprint("ingest", __name__, url_prefix="/ingest")
 def github() -> ResponseReturnValue:
     # Verify on the raw bytes, before anything parses the body.
     body = request.get_data()
-    secret = current_app.config["GITHUB_WEBHOOK_SECRET"]
+    secret = current_app.config.get("GITHUB_WEBHOOK_SECRET")
     if not verify(secret, body, request.headers.get("X-Hub-Signature-256")):
         abort(401, "Request could not be verified")
 
@@ -46,7 +46,7 @@ def github() -> ResponseReturnValue:
 def claude() -> ResponseReturnValue:
     # Verify on the raw bytes, before anything parses the body.
     body = request.get_data()
-    secret = current_app.config["CLAUDE_HOOK_SECRET"]
+    secret = current_app.config.get("CLAUDE_HOOK_SECRET")
     if not verify(secret, body, request.headers.get("X-Flightlog-Signature")):
         abort(401, "Request could not be verified")
 

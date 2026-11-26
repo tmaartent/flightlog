@@ -2,8 +2,9 @@ import hashlib
 import hmac
 
 
-def verify(secret: str, body: bytes, header: str | None) -> bool:
-    if not header:
+def verify(secret: str | None, body: bytes, header: str | None) -> bool:
+    # Anyone can compute an HMAC with an empty key, so an unset secret must refuse everything.
+    if not secret or not header:
         return False
     if not header.startswith("sha256="):
         return False

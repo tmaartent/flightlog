@@ -2,6 +2,14 @@ import datetime
 
 from flask import Flask
 from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+REQUIRED_SECRETS = {
+    "GITHUB_WEBHOOK_SECRET": "every GitHub delivery is refused",
+    "CLAUDE_HOOK_SECRET": "every Claude Code hook event is refused",
+    "SECRET_KEY": "nobody can log in",
+    "ADMIN_PASSWORD_HASH": "nobody can log in",
+}
 
 
 def create_app(test_config=None):
@@ -74,5 +82,17 @@ def create_app(test_config=None):
     app.register_blueprint(report.bp)
     rate_limits.init_app(app)
     audit.init_app(app)
+
+    # Started without a secret, Flightlog still runs, but refuses what that secret protects:
+    # deliveries get a 401 and the login page says it isn't configured. Say so at startup.
+    for name, refused in REQUIRED_SECRETS.items():
+        if not app.config.get(name):
+            app.logger.warning("%s is not set: %s", name, refused)
+
+    # Behind N proxies, trust the last N X-Forwarded-For/-Proto values (ADR-0017). Without a
+    # proxy they are set by the client, so trusting them would let it pick its own IP.
+    proxies = int(app.config.get("PROXY_COUNT", 0))
+    if proxies > 0:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxies, x_proto=proxies)
 
     return app

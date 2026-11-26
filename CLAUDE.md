@@ -51,6 +51,7 @@ python -m venv .venv && .venv/Scripts/activate
 pip install -e ".[dev]" && playwright install chromium
 alembic upgrade head
 flask --app flightlog run --debug       # http://localhost:5000
+docker compose up -d --build --wait     # the whole stack in containers, http://localhost:8000
 pytest
 ruff check . && ruff format --check .
 ```
