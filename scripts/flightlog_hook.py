@@ -18,6 +18,8 @@ import urllib.request
 import uuid
 
 SIGNATURE_HEADER = "X-Flightlog-Signature"
+# Calls to Flightlog's own MCP tools are not sent: Flightlog would log itself (ADR-0019).
+OWN_MCP_TOOLS = "mcp__flightlog__"
 
 
 def make_signature(payload: bytes, secret: str) -> str:
@@ -99,6 +101,10 @@ def main() -> None:
         hook = json.loads(sys.stdin.buffer.read())
         if not isinstance(hook, dict):
             print("Hook input is not a JSON object", file=sys.stderr)
+            return
+
+        tool_name = hook.get("tool_name")
+        if isinstance(tool_name, str) and tool_name.startswith(OWN_MCP_TOOLS):
             return
 
         cwd = hook.get("cwd")

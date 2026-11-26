@@ -82,3 +82,13 @@ def test_an_event_without_work_is_recorded_but_not_queued():
 
     assert result.outcome is IngestOutcome.CREATED
     assert uow.jobs.enqueued == []
+
+
+def test_flightlogs_own_mcp_tool_calls_are_ignored():
+    from flightlog.application.ingest import is_own_mcp_call
+
+    assert is_own_mcp_call({"hook": {"tool_name": "mcp__flightlog__recent_sessions"}})
+    assert not is_own_mcp_call({"hook": {"tool_name": "mcp__github__get_issue"}})
+    assert not is_own_mcp_call({"hook": {"tool_name": "Bash"}})
+    assert not is_own_mcp_call({"hook": "not a dict"})
+    assert not is_own_mcp_call({})

@@ -81,6 +81,8 @@ Tasks
     - `recent_sessions(repo)`: date, goal, files touched, outcome
     - `attempts_on(path)`: earlier sessions that touched this file, and what came of them
     - `session_summary(id)`: the stored summary of one session
+
+    Done: `flask --app flightlog mcp` over stdio from `.mcp.json`, on `mcp` 2.x's `MCPServer`; Flightlog's own calls filtered in the hook script and ingest. See [ADR-0019](adr/0019-read-only-mcp-server.md).
 4. A typed Python client, for agents that write code instead of calling tools one by one ("code execution with MCP"). The agent imports it in a script, filters and joins the results there, and only the answer reaches its context. Claude Code already runs code, so there's no sandbox to build. Same functions as the MCP tools, plus the list queries behind them, so it can answer questions the three tools can't ("which files led to a reverted PR most often this month?"). It talks to the M4 read API with its own API key (ADR-0005), never to the database. Package layout, and when the MCP tools or the client pay off, go in an ADR when the task starts.
 
 Rules
@@ -93,8 +95,8 @@ Done when
 - [x] Every finished session has a stored summary; a test checks it holds no raw tool input
 - [x] `sessions --last 5` prints at most a screenful
 - [ ] A new Claude Code session can call `recent_sessions` and gets structured data back
-- [ ] Calls to the Flightlog MCP tools don't show up as events in Flightlog
-- [ ] The MCP server imports nothing from `infrastructure` (import-linter)
+- [x] Calls to the Flightlog MCP tools don't show up as events in Flightlog
+- [x] The MCP server imports nothing from `infrastructure` (import-linter)
 - [ ] A script using the client answers a question across sessions and prints only the result; the client needs an API key and has no database access
 
 ## Later (only if there's time)

@@ -125,12 +125,24 @@ class SqlDigestQueries:
         self._session = session
 
     def recent(self, repo: str, limit: int) -> list[DigestedSession]:
+        return self._sessions(agent_sessions.c.repo == repo, limit=limit)
+
+    def attempts_on(self, repo: str, path: str, limit: int) -> list[DigestedSession]:
+        # JSONB containment, served by the GIN index on files_touched (ADR-0019).
+        touched = session_digests.c.files_touched.contains([path])
+        return self._sessions(agent_sessions.c.repo == repo, touched, limit=limit)
+
+    def one(self, session_id: int) -> DigestedSession | None:
+        found = self._sessions(agent_sessions.c.id == session_id, limit=1)
+        return found[0] if found else None
+
+    def _sessions(self, *conditions, limit: int) -> list[DigestedSession]:
         s, d = agent_sessions, session_digests
         rows = self._session.execute(
             select(s.c.id, s.c.started_at, s.c.ended_at, s.c.status, s.c.branch, d)
             .select_from(s)
             .outerjoin(d, d.c.agent_session_id == s.c.id)
-            .where(s.c.repo == repo)
+            .where(*conditions)
             .order_by(s.c.started_at.desc(), s.c.id.desc())
             .limit(limit)
         ).all()

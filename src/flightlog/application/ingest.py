@@ -1,7 +1,19 @@
+from typing import Any
+
 from flightlog.application.jobs import jobs_for
 from flightlog.application.ports import UnitOfWork
-from flightlog.contracts.ingest import IngestEvent, IngestOutcome, IngestResult
+from flightlog.contracts.ingest import CLAUDE, IngestEvent, IngestOutcome, IngestResult
 from flightlog.domain import RecordedEvent
+
+OWN_MCP_TOOLS = "mcp__flightlog__"
+
+
+def is_own_mcp_call(payload: dict[str, Any]) -> bool:
+    """A hook event about one of Flightlog's own MCP tools. The hook script skips those; this
+    catches an older script, so Flightlog never records itself (ADR-0019)."""
+    hook = payload.get("hook")
+    tool_name = hook.get("tool_name") if isinstance(hook, dict) else None
+    return isinstance(tool_name, str) and tool_name.startswith(OWN_MCP_TOOLS)
 
 
 def ingest_event(command: IngestEvent, uow: UnitOfWork) -> IngestResult:
@@ -10,6 +22,9 @@ def ingest_event(command: IngestEvent, uow: UnitOfWork) -> IngestResult:
     Event and job are committed together: there is no moment where an event exists without
     its job, so no event is ever lost between ingest and processing (ADR-0008).
     """
+    if command.source == CLAUDE and is_own_mcp_call(command.payload):
+        return IngestResult(IngestOutcome.IGNORED, None)
+
     event = RecordedEvent(
         source=command.source,
         delivery_id=command.delivery_id,

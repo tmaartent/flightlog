@@ -109,3 +109,36 @@ def test_a_long_goal_is_cut():
 
     assert len(goal) == GOAL_LIMIT
     assert goal.endswith("…")
+
+
+class FakeLookups(FakeDigestQueries):
+    def __init__(self, sessions) -> None:
+        super().__init__(sessions)
+        self.attempts_asked: list[tuple[str, str, int]] = []
+
+    def attempts_on(self, repo: str, path: str, limit: int):
+        self.attempts_asked.append((repo, path, limit))
+        return [s for s in self.sessions if s.digest and path in s.digest.files_touched][:limit]
+
+    def one(self, session_id: int):
+        return next((s for s in self.sessions if s.id == session_id), None)
+
+
+def test_attempts_on_a_file_asks_for_the_path_in_the_repo():
+    from flightlog.application.recent import attempts_on
+
+    queries = FakeLookups([session(1), session(2, digest=False)])
+
+    found = attempts_on("shop", "a.py", 10, queries)
+
+    assert [s.id for s in found] == [1]
+    assert queries.attempts_asked == [("shop", "a.py", 10)]
+
+
+def test_one_session_or_none():
+    from flightlog.application.recent import session_summary
+
+    queries = FakeLookups([session(3)])
+
+    assert session_summary(3, queries).id == 3
+    assert session_summary(4, queries) is None

@@ -8,11 +8,11 @@ import datetime
 import json
 import os
 import sys
-from typing import Any
 
 import click
 from flask import Blueprint, current_app
 
+from flightlog.api.session_json import session_json
 from flightlog.application.apply_to_session import repo_name
 from flightlog.application.ports import DigestQueries
 from flightlog.application.recent import clean_text, recent_sessions
@@ -91,39 +91,3 @@ def _files(paths: list[str]) -> str:
 
 def _count(n: int, noun: str) -> str:
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
-
-
-def session_json(s: RecentSession) -> dict[str, Any]:
-    """Every field, structured: counts as numbers, times in ISO 8601, cleaned text only."""
-    d = s.digest
-    return {
-        "id": s.id,
-        "started_at": s.started_at.astimezone(datetime.UTC).isoformat(),
-        "ended_at": s.ended_at.astimezone(datetime.UTC).isoformat() if s.ended_at else None,
-        "status": s.status.value,
-        "branch": s.branch,
-        "goal": s.goal,
-        "pull_request": (
-            {
-                "number": s.pull_request.number,
-                "title": s.pull_request_title,
-                "outcome": s.pull_request.outcome.value,
-            }
-            if s.pull_request
-            else None
-        ),
-        "summary_state": s.state.value,
-        "summary": (
-            {
-                "files_touched": d.files_touched,
-                "files_outside_repo": d.files_outside_repo,
-                "edits": d.edits,
-                "test_runs": d.test_runs,
-                "tool_calls": d.tool_calls,
-                "tools": d.tools,
-                "duration_seconds": d.duration_seconds,
-            }
-            if d
-            else None
-        ),
-    }

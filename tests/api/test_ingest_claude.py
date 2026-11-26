@@ -80,3 +80,16 @@ def test_a_malformed_request_returns_400_and_is_not_stored(client, db_session, b
 
     assert response.status_code == 400, case
     assert stored_events(db_session) == 0
+
+
+@pytest.mark.db
+def test_flightlogs_own_mcp_calls_are_ignored_and_not_stored(client, db_session):
+    """A second line of defence, for a hook script older than the filter (ADR-0019)."""
+    hook = {**HOOK, "tool_name": "mcp__flightlog__session_summary", "tool_input": {"session_id": 1}}
+    body = json.dumps(envelope(hook)).encode()
+
+    response = post_envelope(client, body)
+
+    assert response.status_code == 202
+    assert response.get_json() == {"status": "ignored"}
+    assert stored_events(db_session) == 0

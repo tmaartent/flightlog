@@ -20,6 +20,16 @@ def recent_sessions(repo: str, last: int, queries: DigestQueries) -> list[Recent
     return [_recent(s) for s in queries.recent(repo, last)]
 
 
+def attempts_on(repo: str, path: str, last: int, queries: DigestQueries) -> list[RecentSession]:
+    """Earlier sessions in the repo whose digest lists this path (relative), newest first."""
+    return [_recent(s) for s in queries.attempts_on(repo, path, last)]
+
+
+def session_summary(session_id: int, queries: DigestQueries) -> RecentSession | None:
+    found = queries.one(session_id)
+    return _recent(found) if found else None
+
+
 def _recent(session: DigestedSession) -> RecentSession:
     pull_request = max(session.pull_requests, key=lambda p: p.number, default=None)
     if session.digest is not None:
