@@ -7,7 +7,7 @@ from typing import Self
 from flightlog.application.jobs import Job, JobKind
 from flightlog.contracts.sessions import LinkedPullRequest, SessionSummary
 from flightlog.contracts.timeline import SessionEvent
-from flightlog.domain import AgentSession, PullRequest, RecordedEvent
+from flightlog.domain import AgentSession, Connector, PullRequest, RecordedEvent
 
 
 class FakeEventLog:
@@ -86,12 +86,28 @@ class FakePullRequestRepository:
         self.pull_requests[(pull_request.repo, pull_request.number)] = pull_request
 
 
+class FakeConnectorRepository:
+    def __init__(self) -> None:
+        self.connectors: list[Connector] = []
+
+    def get_by_prefix(self, key_prefix: str) -> Connector | None:
+        return next((c for c in self.connectors if c.key_prefix == key_prefix), None)
+
+    def get_by_name(self, name: str) -> Connector | None:
+        return next((c for c in self.connectors if c.name == name), None)
+
+    def add(self, connector: Connector) -> None:
+        connector.id = len(self.connectors) + 1
+        self.connectors.append(connector)
+
+
 class FakeUnitOfWork:
     def __init__(self) -> None:
         self.events = FakeEventLog()
         self.jobs = FakeJobQueue()
         self.agent_sessions = FakeAgentSessionRepository()
         self.pull_requests = FakePullRequestRepository()
+        self.connectors = FakeConnectorRepository()
         self.commits = 0
         self.rollbacks = 0
 

@@ -1,10 +1,10 @@
-"""The admin page: jobs the worker gave up on, and a button to retry them (M3 task 3)."""
+"""Admin pages: failed jobs with a retry button (M3), and the API connectors (M4)."""
 
 from flask import Blueprint, current_app, flash, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
 
 from flightlog.api.auth import check_csrf, require_admin
-from flightlog.application.ports import JobQueries, UnitOfWork
+from flightlog.application.ports import ConnectorQueries, JobQueries, UnitOfWork
 from flightlog.application.retry import retry_failed_job
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -27,3 +27,9 @@ def retry(job_id: int) -> ResponseReturnValue:
         flash(f"Job {job_id} is not failed: it was retried already or has finished.", "error")
     # Post/Redirect/Get: a reload shows the list instead of sending the POST again.
     return redirect(url_for("admin.jobs"))
+
+
+@bp.get("/connectors")
+def connectors() -> ResponseReturnValue:
+    queries: ConnectorQueries = current_app.extensions["connector_queries"]()
+    return render_template("admin/connectors.html", connectors=queries.list_connectors())

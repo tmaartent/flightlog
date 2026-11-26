@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Connectors{% endblock %}
+{% block content %}
+<h1>Connectors</h1>
+<p class="muted">Clients of the read API, each with its own key. Only the prefix is kept, so a key can be recognised here but not read. Create and revoke with <code>flask connector create &lt;name&gt;</code> and <code>flask connector revoke &lt;name&gt;</code>.</p>
+
+{% if connectors %}
+<div class="table-wrap">
+<table class="connectors">
+  <thead>
+    <tr>
+      <th scope="col">Name</th>
+      <th scope="col">Key</th>
+      <th scope="col">Created</th>
+      <th scope="col">State</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in connectors %}
+    <tr>
+      <td>{{ c.name }}</td>
+      <td><code>fl_{{ c.prefix }}_…</code></td>
+      <td>{{ c.created_at | utc }}</td>
+      <td>{% if c.revoked_at %}revoked {{ c.revoked_at | utc }}{% else %}active{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="empty">No connectors yet.</p>
+{% endif %}
+{% endblock %}

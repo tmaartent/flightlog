@@ -117,3 +117,18 @@ pull_requests = Table(
     Index("ix_pull_requests_repo_branch", "repo", "branch"),  # session -> its pull requests
     Index("ix_pull_requests_repo_reverts", "repo", "reverts"),  # was this PR reverted?
 )
+
+# Clients of the read API, one key each (ADR-0005). Only the key's prefix and its SHA-256 are
+# stored. Revoking sets revoked_at and keeps the row, so audit rows can still name it.
+connectors = Table(
+    "connectors",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("name", String(100), nullable=False),
+    Column("key_prefix", String(8), nullable=False),
+    Column("key_hash", String(64), nullable=False),  # hex SHA-256 of the full key
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("revoked_at", DateTime(timezone=True), nullable=True),
+    UniqueConstraint("name"),
+    UniqueConstraint("key_prefix"),  # every request looks a key up by its prefix
+)

@@ -1,6 +1,7 @@
 import datetime
 
 from flask import Flask
+from werkzeug.exceptions import HTTPException
 
 
 def create_app(test_config=None):
@@ -20,9 +21,20 @@ def create_app(test_config=None):
     if test_config is not None:
         app.config.update(test_config)
 
-    from flightlog.api import admin, auth, dashboard, health, ingest, worker
+    from flightlog.api import (
+        admin,
+        auth,
+        connectors,
+        dashboard,
+        errors,
+        health,
+        ingest,
+        read_api,
+        worker,
+    )
     from flightlog.infrastructure import db
     from flightlog.infrastructure.agent_session_queries import request_agent_session_queries
+    from flightlog.infrastructure.connector_repository import request_connector_queries
     from flightlog.infrastructure.job_queue import request_job_queries
     from flightlog.infrastructure.mapping import start_mappers
     from flightlog.infrastructure.probe import database_is_reachable
@@ -34,13 +46,17 @@ def create_app(test_config=None):
     app.extensions["worker_unit_of_work"] = new_unit_of_work
     app.extensions["agent_session_queries"] = request_agent_session_queries
     app.extensions["job_queries"] = request_job_queries
+    app.extensions["connector_queries"] = request_connector_queries
     app.extensions["database_probe"] = database_is_reachable
 
+    app.register_error_handler(HTTPException, errors.handle_http_error)
     app.register_blueprint(health.bp)
     app.register_blueprint(ingest.bp)
     app.register_blueprint(worker.bp)
     app.register_blueprint(auth.bp)
     app.register_blueprint(dashboard.bp)
     app.register_blueprint(admin.bp)
+    app.register_blueprint(read_api.bp)
+    app.register_blueprint(connectors.bp)
 
     return app
