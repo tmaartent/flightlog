@@ -17,6 +17,7 @@ Flask is a small core plus your own choices. Django gives you the house; Flask g
 | Templates | Jinja2 | Thymeleaf | Close to Django template syntax, but with real expressions and macros. |
 | DRF serializers / `JsonResponse` | Return a `dict` or `list` → JSON automatically; `jsonify` for the rest | `ResponseEntity` | No serializer layer built in. Dataclasses or Pydantic if you need one. |
 | `Http404`, exception middleware | `abort(401)`, `@bp.errorhandler(...)`, `@app.errorhandler(HTTPException)` | `@ControllerAdvice` | Return JSON errors for API blueprints, HTML for the dashboard. |
+| `handler404` / `handler500` in the root `urls.py` | `app.register_error_handler(HTTPException, handle)` once in `create_app` | `@ControllerAdvice` with `@ExceptionHandler` | One app-level handler sees every HTTP error, also for URLs that match no route. Flightlog picks JSON for `/ingest` and `/api`, HTML otherwise. |
 | `django.test.Client` | `app.test_client()`, `app.test_cli_runner()` | `MockMvc` | Make a `client` fixture in `conftest.py` from `create_app(test_config)`. |
 
 ## Things that bite
@@ -26,6 +27,7 @@ Flask is a small core plus your own choices. Django gives you the house; Flask g
 - **`g` is not a cache.** It's gone after the request. Don't store anything there you need next time.
 - **`debug=True` is not for production.** Run under gunicorn in Docker (`gunicorn "flightlog:create_app()"`).
 - **`flask.session` is a signed cookie,** not server-side storage, and has nothing to do with the SQLAlchemy session. Don't mix them up in an interview answer.
+- **A blueprint's 404/405 handler doesn't fire for unknown URLs.** `@bp.errorhandler(404)` only handles an `abort(404)` raised inside that blueprint's own views. When no route matches, Flask doesn't know which blueprint the URL was meant for (`request.blueprints` is `[]`), so `/ingest/nope` falls through to the app-level handler. Decide JSON vs. HTML there, by path prefix.
 
 ## Interview angles
 
