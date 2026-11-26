@@ -6,6 +6,7 @@ from flightlog.application.jobs import Job, JobKind
 from flightlog.contracts.admin import FailedJob
 from flightlog.contracts.audit import AuditEntry, AuditFilter, AuditPage
 from flightlog.contracts.connectors import ConnectorInfo
+from flightlog.contracts.digest import DigestEvent, SessionDigest
 from flightlog.contracts.report import ReportSession
 from flightlog.contracts.sessions import (
     LinkedPullRequest,
@@ -65,9 +66,35 @@ class ConnectorRepository(Protocol):
         ...
 
 
+class DigestRepository(Protocol):
+    """Stored session summaries (ADR-0018), and the events they are computed from."""
+
+    def session(
+        self, agent_session_id: int
+    ) -> tuple[datetime.datetime, datetime.datetime | None] | None:
+        """(started_at, ended_at) of the session, or None if there is no such session."""
+        ...
+
+    def source_events(self, agent_session_id: int) -> list[DigestEvent]:
+        """The session's applied events, with only the fields a digest may read."""
+        ...
+
+    def save(self, digest: SessionDigest) -> None:
+        """Insert or replace, unless the stored one was computed from more events or newer rules."""
+        ...
+
+    def stale_sessions(self, rules_version: int) -> list[int]:
+        """For each stopped session without a digest of this version: its latest event's id."""
+        ...
+
+
 class JobQueue(Protocol):
     def enqueue(self, event_id: int, kind: JobKind) -> None:
         """Add a job for the event. Part of the caller's transaction (ADR-0008)."""
+        ...
+
+    def enqueue_unless_queued(self, event_id: int, kind: JobKind) -> bool:
+        """Add the job unless the same (event, kind) is queued already. True if added."""
         ...
 
     def claim_next(self) -> Job | None:
@@ -99,6 +126,7 @@ class UnitOfWork(Protocol):
     agent_sessions: AgentSessionRepository
     pull_requests: PullRequestRepository
     connectors: ConnectorRepository
+    digests: DigestRepository
 
     def commit(self) -> None: ...
 

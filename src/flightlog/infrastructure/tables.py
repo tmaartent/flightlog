@@ -164,3 +164,21 @@ audit_log = Table(
     # The admin page filters on a connector, newest first.
     Index("ix_audit_log_connector_id", "connector_id", "id"),
 )
+
+# The stored summary of a finished session (ADR-0018): structured facts only, computed by the
+# summarize_session job. The PR outcome isn't here: it changes later, so it's read live.
+session_digests = Table(
+    "session_digests",
+    metadata,
+    Column("agent_session_id", Integer, ForeignKey("agent_sessions.id"), primary_key=True),
+    Column("files_touched", JSONB, nullable=False),  # paths relative to the repo
+    Column("files_outside_repo", Integer, nullable=False),
+    Column("edits", Integer, nullable=False),
+    Column("test_runs", Integer, nullable=False),
+    Column("tool_calls", Integer, nullable=False),
+    Column("tools", JSONB, nullable=False),  # {tool name: calls}
+    Column("duration_seconds", Integer, nullable=True),
+    Column("event_count", Integer, nullable=False),  # the newer digest has more
+    Column("rules_version", Integer, nullable=False),
+    Column("computed_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+)

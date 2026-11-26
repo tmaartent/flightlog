@@ -75,7 +75,7 @@ Goal: a new agent session starts with a short history of what was tried before, 
 The value is in the summaries, not the protocol: an MCP server that passes raw events through adds noise instead of preventing it. So summaries come first, a CLI second, MCP last.
 
 Tasks
-1. A summary per session, as structured data: goal, files touched, test runs, outcome (PR merged, reverted, none). Optionally a short text from the Claude API as structured output. Stored, so it's computed once.
+1. A summary per session, as structured data: goal, files touched, test runs, outcome (PR merged, reverted, none). Optionally a short text from the Claude API as structured output. Stored, so it's computed once. Done: the `summarize_session` job, `session_digests` with a conditional upsert, `flask summaries rebuild`; the outcome and the goal stay derived at read time. See [ADR-0018](adr/0018-stored-session-summaries.md).
 2. `flask --app flightlog sessions --repo <name> --last 5`: a compact summary any agent can already call through its shell, with no extra server.
 3. A read-only MCP server as another adapter in the `api` layer, calling the same application queries as the read API (M4). Three tools, no more:
     - `recent_sessions(repo)`: date, goal, files touched, outcome
@@ -90,7 +90,7 @@ Rules
 - Small answers: a tool result fits on one screen.
 
 Done when
-- [ ] Every finished session has a stored summary; a test checks it holds no raw tool input
+- [x] Every finished session has a stored summary; a test checks it holds no raw tool input
 - [ ] `sessions --last 5` prints at most a screenful
 - [ ] A new Claude Code session can call `recent_sessions` and gets structured data back
 - [ ] Calls to the Flightlog MCP tools don't show up as events in Flightlog

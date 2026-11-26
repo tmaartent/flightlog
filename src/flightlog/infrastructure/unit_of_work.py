@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from flightlog.infrastructure.agent_session_repository import SqlAgentSessionRepository
 from flightlog.infrastructure.connector_repository import SqlConnectorRepository
 from flightlog.infrastructure.db import get_session
+from flightlog.infrastructure.digest_repository import SqlDigestRepository
 from flightlog.infrastructure.event_log import SqlEventLog
 from flightlog.infrastructure.job_queue import SqlJobQueue
 from flightlog.infrastructure.pull_request_repository import SqlPullRequestRepository
@@ -22,6 +23,7 @@ class SqlUnitOfWork:
         self.agent_sessions = SqlAgentSessionRepository(session)
         self.pull_requests = SqlPullRequestRepository(session)
         self.connectors = SqlConnectorRepository(session)
+        self.digests = SqlDigestRepository(session)
 
     def commit(self) -> None:
         self._session.commit()

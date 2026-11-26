@@ -4,6 +4,7 @@ from collections.abc import Callable, Mapping
 
 from flightlog.application.apply_pull_request import apply_pull_request
 from flightlog.application.apply_to_session import apply_to_session
+from flightlog.application.digest import summarize_session
 from flightlog.application.jobs import JobKind, retry_delay
 from flightlog.application.ports import UnitOfWork
 
@@ -11,6 +12,7 @@ Handler = Callable[[int, datetime.datetime, UnitOfWork], None]
 HANDLERS: Mapping[JobKind, Handler] = {
     JobKind.APPLY_TO_SESSION: apply_to_session,
     JobKind.APPLY_PULL_REQUEST: apply_pull_request,
+    JobKind.SUMMARIZE_SESSION: summarize_session,
 }
 
 logger = logging.getLogger(__name__)
