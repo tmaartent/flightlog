@@ -90,6 +90,9 @@ class FakeConnectorRepository:
     def __init__(self) -> None:
         self.connectors: list[Connector] = []
 
+    def get(self, connector_id: int) -> Connector | None:
+        return next((c for c in self.connectors if c.id == connector_id), None)
+
     def get_by_prefix(self, key_prefix: str) -> Connector | None:
         return next((c for c in self.connectors if c.key_prefix == key_prefix), None)
 

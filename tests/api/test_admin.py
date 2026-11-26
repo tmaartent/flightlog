@@ -112,10 +112,10 @@ def test_retry_is_not_a_get(admin_client, db_session):
 
 @pytest.mark.db
 def test_retry_needs_a_login(client, db_session):
+    """A 401, not a redirect: redirecting would drop the POST anyway (ADR-0015)."""
     job_id = failed_job(db_session)
 
     response = retry(client, job_id)
 
-    assert response.status_code == 302
-    assert response.headers["Location"].startswith("/login")
+    assert response.status_code == 401
     assert job_row(db_session, job_id).failed_at is not None

@@ -1,6 +1,7 @@
 """The database schema. Alembic's autogenerate compares against `metadata`."""
 
 from sqlalchemy import (
+    BigInteger,
     Column,
     DateTime,
     Enum,
@@ -8,6 +9,7 @@ from sqlalchemy import (
     Index,
     Integer,
     MetaData,
+    SmallInteger,
     String,
     Table,
     Text,
@@ -17,6 +19,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
+from flightlog.contracts.audit import ActorKind
 from flightlog.domain import AgentSessionStatus, PullRequestState
 
 # Predictable constraint names, so later migrations can refer to them.
@@ -131,4 +134,33 @@ connectors = Table(
     Column("revoked_at", DateTime(timezone=True), nullable=True),
     UniqueConstraint("name"),
     UniqueConstraint("key_prefix"),  # every request looks a key up by its prefix
+)
+
+# One row per read API call and per admin action (ADR-0015). Append-only: the code has no
+# UPDATE or DELETE for it. The outcome isn't stored; it is read from `status`.
+audit_log = Table(
+    "audit_log",
+    metadata,
+    Column("id", BigInteger, primary_key=True),  # a flood of 429s is a row each
+    Column("occurred_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    Column(
+        "actor_kind",
+        Enum(
+            ActorKind,
+            native_enum=False,
+            values_callable=lambda e: [m.value for m in e],
+            length=20,
+        ),
+        nullable=False,
+    ),
+    Column("connector_id", Integer, ForeignKey("connectors.id"), nullable=True),
+    Column("ip", String(45), nullable=True),  # long enough for IPv6
+    Column("method", String(10), nullable=False),
+    Column("endpoint", String(100), nullable=True),  # None when no route matched
+    Column("path", Text, nullable=False),
+    Column("object_type", String(50), nullable=True),
+    Column("object_id", String(100), nullable=True),
+    Column("status", SmallInteger, nullable=False),
+    # The admin page filters on a connector, newest first.
+    Index("ix_audit_log_connector_id", "connector_id", "id"),
 )

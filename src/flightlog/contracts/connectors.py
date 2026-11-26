@@ -24,6 +24,7 @@ class IssuedKey:
 class ConnectorInfo:
     """A connector as the admin page and `flask connector list` show it: never the hash."""
 
+    id: int
     name: str
     prefix: str
     created_at: datetime.datetime

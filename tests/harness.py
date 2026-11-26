@@ -6,7 +6,8 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 from flask import Flask
-from sqlalchemy import create_engine, make_url, text
+from sqlalchemy import Connection, create_engine, make_url, text
+from sqlalchemy.orm import sessionmaker
 from werkzeug.security import generate_password_hash
 
 from flightlog import create_app
@@ -41,6 +42,22 @@ def make_app(**overrides) -> Flask:
             **overrides,
         }
     )
+
+
+def make_test_app(db_connection: Connection, **overrides) -> Flask:
+    """An app whose sessions all run inside the test's transaction, with config overrides.
+
+    get_session() in a route, the worker's sessions and the audit log's own session all use
+    the same connection as the db_session fixture, so a test can post a request and then query
+    what was stored. Everything is rolled back after the test, including what was committed.
+    Build every test app with this: one on the real engine commits for good (an audited login
+    left rows behind that way).
+    """
+    app = make_app(**overrides)
+    app.extensions["sessionmaker"] = sessionmaker(
+        bind=db_connection, join_transaction_mode="create_savepoint"
+    )
+    return app
 
 
 def create_database_if_missing(url: str) -> None:

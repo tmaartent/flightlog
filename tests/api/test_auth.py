@@ -7,7 +7,7 @@ import pytest
 from werkzeug.security import check_password_hash
 
 from flightlog import create_app
-from tests.harness import TEST_ADMIN_PASSWORD, make_app
+from tests.harness import TEST_ADMIN_PASSWORD, make_test_app
 from tests.util import csrf_token
 
 
@@ -158,8 +158,8 @@ def test_logout_needs_a_post_with_a_csrf_token(admin_client):
 
 
 @pytest.mark.db
-def test_without_a_configured_password_nobody_can_log_in(db_engine):
-    client = make_app(ADMIN_PASSWORD_HASH=None).test_client()
+def test_without_a_configured_password_nobody_can_log_in(db_connection):
+    client = make_test_app(db_connection, ADMIN_PASSWORD_HASH=None).test_client()
 
     page = client.get("/login")
     response = log_in(client)

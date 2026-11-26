@@ -31,6 +31,10 @@ def require_admin() -> ResponseReturnValue | None:
     """before_request for the dashboard and admin blueprints: log in first."""
     if session.get("admin") is True:
         return None
+    if request.method in UNSAFE_METHODS:
+        # Not a redirect: it would drop the POST anyway, and the audit log would read the 302
+        # as "ok" (ADR-0015). A form posted after the session expired lands here.
+        abort(401, "Log in first: your session has ended.")
     # full_path ends with "?" when there is no query string.
     return redirect(url_for("auth.login", next=request.full_path.rstrip("?")))
 

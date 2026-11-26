@@ -23,6 +23,7 @@ def create_app(test_config=None):
 
     from flightlog.api import (
         admin,
+        audit,
         auth,
         connectors,
         dashboard,
@@ -35,6 +36,7 @@ def create_app(test_config=None):
     )
     from flightlog.infrastructure import db
     from flightlog.infrastructure.agent_session_queries import request_agent_session_queries
+    from flightlog.infrastructure.audit_log import new_audit_log, request_audit_queries
     from flightlog.infrastructure.connector_repository import request_connector_queries
     from flightlog.infrastructure.job_queue import request_job_queries
     from flightlog.infrastructure.mapping import start_mappers
@@ -48,6 +50,9 @@ def create_app(test_config=None):
     app.extensions["agent_session_queries"] = request_agent_session_queries
     app.extensions["job_queries"] = request_job_queries
     app.extensions["connector_queries"] = request_connector_queries
+    app.extensions["audit_log"] = new_audit_log
+    app.extensions["end_request_session"] = db.end_request_session
+    app.extensions["audit_queries"] = request_audit_queries
     app.extensions["database_probe"] = database_is_reachable
 
     app.register_error_handler(HTTPException, errors.handle_http_error)
@@ -60,5 +65,6 @@ def create_app(test_config=None):
     app.register_blueprint(read_api.bp)
     app.register_blueprint(connectors.bp)
     rate_limits.init_app(app)
+    audit.init_app(app)
 
     return app

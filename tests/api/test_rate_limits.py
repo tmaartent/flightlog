@@ -3,11 +3,10 @@
 import datetime
 
 import pytest
-from sqlalchemy.orm import sessionmaker
 
 from flightlog.application.api_keys import issue_key, revoke_key
 from flightlog.infrastructure.unit_of_work import SqlUnitOfWork
-from tests.harness import TEST_ADMIN_PASSWORD, make_app
+from tests.harness import TEST_ADMIN_PASSWORD, make_test_app
 from tests.util import csrf_token
 
 NOW = datetime.datetime(2026, 11, 26, 10, 0, tzinfo=datetime.UTC)
@@ -16,13 +15,11 @@ NOW = datetime.datetime(2026, 11, 26, 10, 0, tzinfo=datetime.UTC)
 @pytest.fixture
 def client(db_connection):
     """Low limits, so a test reaches them in a few requests. A fresh app has fresh counters."""
-    app = make_app(
+    app = make_test_app(
+        db_connection,
         RATELIMIT_API="3 per minute",
         RATELIMIT_API_ANONYMOUS="2 per minute",
         RATELIMIT_LOGIN="2 per minute",
-    )
-    app.extensions["sessionmaker"] = sessionmaker(
-        bind=db_connection, join_transaction_mode="create_savepoint"
     )
     return app.test_client()
 
