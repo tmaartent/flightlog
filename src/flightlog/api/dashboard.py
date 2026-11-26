@@ -6,9 +6,11 @@ from flask import Blueprint, abort, current_app, redirect, render_template, requ
 from flask.typing import ResponseReturnValue
 
 from flightlog.api.auth import check_csrf, require_admin
+from flightlog.api.report import build_report, render_report_html
 from flightlog.api.session_filter import STATUSES, parse_session_filter
 from flightlog.application.ports import AgentSessionQueries
 from flightlog.application.timeline import session_timeline
+from flightlog.contracts.report import IsoWeek
 
 bp = Blueprint("dashboard", __name__)
 bp.before_request(require_admin)
@@ -52,6 +54,22 @@ def timeline(session_id: int) -> ResponseReturnValue:
     if found is None:
         abort(404)
     return render_template("dashboard/timeline.html", timeline=found)
+
+
+@bp.get("/reports")
+def reports() -> ResponseReturnValue:
+    week = IsoWeek.last_full_week(datetime.datetime.now(datetime.UTC).date())
+    return redirect(url_for("dashboard.report", week=str(week)))
+
+
+@bp.get("/reports/<week>")
+def report(week: str) -> ResponseReturnValue:
+    """The weekly report as HTML: what `flask report` prints, for working on the layout."""
+    try:
+        iso_week = IsoWeek.parse(week)
+    except ValueError:
+        abort(404)
+    return render_report_html(build_report(iso_week))
 
 
 def queries() -> AgentSessionQueries:

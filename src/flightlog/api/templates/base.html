@@ -12,6 +12,7 @@
     {% if is_admin %}
     <nav aria-label="Main">
       <a href="{{ url_for('dashboard.sessions') }}">Sessions</a>
+      <a href="{{ url_for('dashboard.reports') }}">Weekly report</a>
       <a href="{{ url_for('admin.jobs') }}">Failed jobs</a>
       <a href="{{ url_for('admin.connectors') }}">Connectors</a>
       <a href="{{ url_for('admin.audit') }}">Audit log</a>

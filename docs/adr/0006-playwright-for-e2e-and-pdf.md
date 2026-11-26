@@ -1,6 +1,6 @@
 # 0006 · Playwright for end-to-end tests and PDF rendering
 
-- Status: Accepted (end-to-end tests since 2026-11-26; PDF in M4)
+- Status: Accepted (end-to-end tests since 2026-11-26; PDF since M4, see ADR-0016)
 - Date: 2026-11-12
 
 ## Context

@@ -1,6 +1,10 @@
+import datetime
+from collections import defaultdict
+
 from sqlalchemy import and_, exists, func, select, tuple_
 from sqlalchemy.orm import Session, aliased
 
+from flightlog.contracts.report import ReportSession
 from flightlog.contracts.sessions import (
     LinkedPullRequest,
     PullRequestOutcome,
@@ -22,36 +26,8 @@ class SqlAgentSessionQueries:
         self._session = session
 
     def linked_pull_requests(self, session_id: int) -> list[LinkedPullRequest]:
-        pr = pull_requests
-        revert = aliased(pull_requests)
-        # Derived on read (ADR-0009): a revert that is still open has undone nothing yet.
-        reverted = exists().where(
-            revert.c.repo == pr.c.repo,
-            revert.c.reverts == pr.c.number,
-            revert.c.state == PullRequestState.MERGED,
-        )
-        statement = (
-            select(pr.c.number, pr.c.title, pr.c.state, reverted.label("reverted"))
-            .join_from(
-                agent_sessions,
-                pr,
-                and_(pr.c.repo == agent_sessions.c.repo, pr.c.branch == agent_sessions.c.branch),
-            )
-            .where(agent_sessions.c.id == session_id)
-            .order_by(pr.c.number)
-        )
-        return [
-            LinkedPullRequest(
-                number=row.number,
-                title=row.title,
-                outcome=(
-                    PullRequestOutcome.REVERTED
-                    if row.state is PullRequestState.MERGED and row.reverted
-                    else PullRequestOutcome(row.state.value)
-                ),
-            )
-            for row in self._session.execute(statement)
-        ]
+        statement = _linked_pull_requests().where(agent_sessions.c.id == session_id)
+        return [_linked_pull_request(row) for row in self._session.execute(statement)]
 
     def list_sessions(self, session_filter: SessionFilter) -> SessionPage:
         s = agent_sessions
@@ -88,35 +64,123 @@ class SqlAgentSessionQueries:
         return _summary(row) if row else None
 
     def session_events(self, session_id: int) -> list[SessionEvent]:
-        hook = event_logs.c.payload["hook"]
-        tool_input = hook["tool_input"]
-        statement = (
-            select(
-                event_logs.c.id,
-                event_logs.c.type,
-                event_logs.c.occurred_at,
-                hook["tool_name"].astext.label("tool_name"),
-                # NotebookEdit names its file notebook_path; every other edit tool file_path.
-                func.coalesce(
-                    tool_input["file_path"].astext, tool_input["notebook_path"].astext
-                ).label("file_path"),
-                tool_input["command"].astext.label("command"),
-            )
-            .where(event_logs.c.agent_session_id == session_id)
-            # The sender's clock decides the order (ADR-0004); id only breaks ties.
-            .order_by(event_logs.c.occurred_at, event_logs.c.id)
-        )
+        statement = _session_events().where(event_logs.c.agent_session_id == session_id)
+        return [_session_event(row) for row in self._session.execute(statement)]
+
+
+class SqlReportQueries:
+    """ReportQueries on PostgreSQL (ADR-0016): the same SELECTs as the dashboard, for a week."""
+
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def sessions_started(
+        self, start: datetime.datetime, end: datetime.datetime
+    ) -> list[ReportSession]:
+        s = agent_sessions
+        rows = self._session.execute(
+            select(s.c.id, s.c.repo, s.c.branch, s.c.status, s.c.started_at, s.c.ended_at)
+            .where(s.c.started_at >= start, s.c.started_at < end)
+            .order_by(s.c.started_at, s.c.id)
+        ).all()
+        linked: dict[int, list[LinkedPullRequest]] = defaultdict(list)
+        if rows:
+            ids = [row.id for row in rows]
+            statement = _linked_pull_requests().where(agent_sessions.c.id.in_(ids))
+            for row in self._session.execute(statement):
+                linked[row.session_id].append(_linked_pull_request(row))
         return [
-            SessionEvent(
+            ReportSession(
                 id=row.id,
-                type=row.type,
-                occurred_at=row.occurred_at,
-                tool_name=row.tool_name,
-                file_path=row.file_path,
-                command=row.command,
+                repo=row.repo,
+                branch=row.branch,
+                status=row.status,
+                started_at=row.started_at,
+                ended_at=row.ended_at,
+                pull_requests=linked[row.id],
             )
-            for row in self._session.execute(statement)
+            for row in rows
         ]
+
+    def events_of(self, session_ids: list[int]) -> dict[int, list[SessionEvent]]:
+        events: dict[int, list[SessionEvent]] = {i: [] for i in session_ids}
+        if session_ids:
+            statement = _session_events().where(event_logs.c.agent_session_id.in_(session_ids))
+            for row in self._session.execute(statement):
+                events[row.session_id].append(_session_event(row))
+        return events
+
+
+def _linked_pull_requests():
+    """PRs opened from a session's branch in its repo (ADR-0009), with the session's id."""
+    pr = pull_requests
+    revert = aliased(pull_requests)
+    # Derived on read: a revert that is still open has undone nothing yet.
+    reverted = exists().where(
+        revert.c.repo == pr.c.repo,
+        revert.c.reverts == pr.c.number,
+        revert.c.state == PullRequestState.MERGED,
+    )
+    return (
+        select(
+            agent_sessions.c.id.label("session_id"),
+            pr.c.number,
+            pr.c.title,
+            pr.c.state,
+            reverted.label("reverted"),
+        )
+        .join_from(
+            agent_sessions,
+            pr,
+            and_(pr.c.repo == agent_sessions.c.repo, pr.c.branch == agent_sessions.c.branch),
+        )
+        .order_by(pr.c.number)
+    )
+
+
+def _linked_pull_request(row) -> LinkedPullRequest:
+    return LinkedPullRequest(
+        number=row.number,
+        title=row.title,
+        outcome=(
+            PullRequestOutcome.REVERTED
+            if row.state is PullRequestState.MERGED and row.reverted
+            else PullRequestOutcome(row.state.value)
+        ),
+    )
+
+
+def _session_events():
+    """The fields of applied events that the timeline reads, with their session's id."""
+    hook = event_logs.c.payload["hook"]
+    tool_input = hook["tool_input"]
+    return (
+        select(
+            event_logs.c.agent_session_id.label("session_id"),
+            event_logs.c.id,
+            event_logs.c.type,
+            event_logs.c.occurred_at,
+            hook["tool_name"].astext.label("tool_name"),
+            # NotebookEdit names its file notebook_path; every other edit tool file_path.
+            func.coalesce(tool_input["file_path"].astext, tool_input["notebook_path"].astext).label(
+                "file_path"
+            ),
+            tool_input["command"].astext.label("command"),
+        )
+        # The sender's clock decides the order (ADR-0004); id only breaks ties.
+        .order_by(event_logs.c.occurred_at, event_logs.c.id)
+    )
+
+
+def _session_event(row) -> SessionEvent:
+    return SessionEvent(
+        id=row.id,
+        type=row.type,
+        occurred_at=row.occurred_at,
+        tool_name=row.tool_name,
+        file_path=row.file_path,
+        command=row.command,
+    )
 
 
 def _summaries():
@@ -168,3 +232,7 @@ def _summary(row) -> SessionSummary:
 def request_agent_session_queries() -> SqlAgentSessionQueries:
     """The read side on the current request's session (closed in teardown, see db.py)."""
     return SqlAgentSessionQueries(get_session())
+
+
+def request_report_queries() -> SqlReportQueries:
+    return SqlReportQueries(get_session())

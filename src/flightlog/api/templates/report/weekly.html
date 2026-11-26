@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flightlog weekly report {{ report.week }}</title>
+{#- Self-contained on purpose (ADR-0016): Chromium renders it with the network blocked. -#}
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 10pt/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1f2328; }
+  .repo + .repo, .repo + .empty-week { break-before: page; }
+  .kicker { margin: 0; font-size: 8.5pt; color: #59636e; text-transform: uppercase; letter-spacing: .04em; }
+  h1 { margin: 2mm 0 5mm; font-size: 18pt; }
+  h2 { margin: 5mm 0 1.5mm; font-size: 11pt; }
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 0; }
+  .summary div { border: 1px solid #d1d9e0; border-radius: 2mm; padding: 2.5mm 3mm; }
+  .summary dt { font-size: 8.5pt; color: #59636e; }
+  .summary dd { margin: 0; font-size: 14pt; font-weight: 600; }
+  .summary dd small { font-size: 8.5pt; font-weight: 400; color: #59636e; }
+  /* Fixed layout and one line per row: a busy repo still fits on one A4 page (ADR-0016). */
+  table { width: 100%; border-collapse: collapse; font-size: 8.5pt; table-layout: fixed; }
+  th, td { padding: 0.7mm 2mm; border-bottom: 1px solid #e3e8ec; text-align: left; vertical-align: top; }
+  th { font-size: 8pt; color: #59636e; font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.path { font-family: ui-monospace, Consolas, monospace; font-size: 8pt; }
+  td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Clip a long path at its start, so the file name at the end stays visible. */
+  td.clip-start { direction: rtl; text-align: left; }
+  tr { break-inside: avoid; }
+  .muted { color: #59636e; }
+  .more { margin: 1.5mm 0 0; font-size: 8.5pt; color: #59636e; }
+  .empty-week p { font-size: 11pt; }
+</style>
+</head>
+<body>
+{% set kicker -%}
+  Flightlog weekly report · {{ report.week }} · {{ report.week | week_days }} · generated {{ report.generated_at | utc }}
+{%- endset %}
+{% for repo in report.repos %}
+<section class="repo">
+  <p class="kicker">{{ kicker }}</p>
+  <h1>{{ repo.repo }}</h1>
+
+  <dl class="summary">
+    <div><dt>Sessions</dt><dd>{{ repo.sessions }} <small>{{ repo.stopped }} stopped, {{ repo.active }} active</small></dd></div>
+    <div><dt>Time in stopped sessions</dt><dd>{{ repo.time_spent | timespan }}</dd></div>
+    <div><dt>Test runs</dt><dd>{{ repo.test_runs }}</dd></div>
+    <div><dt>Pull requests</dt><dd>{{ repo.pull_requests.values() | sum }}
+      <small>{% for outcome, count in repo.pull_requests.items() if count %}{{ count }} {{ outcome }}{% if not loop.last %}, {% endif %}{% else %}none{% endfor %}</small></dd></div>
+  </dl>
+
+  <h2>Files edited most</h2>
+  {% if repo.top_files %}
+  <table>
+    <colgroup><col><col style="width:16mm"></colgroup>
+    <thead><tr><th scope="col">File</th><th scope="col" class="num">Edits</th></tr></thead>
+    <tbody>
+      {% for path, edits in repo.top_files %}
+      <tr><td class="path clip-start" title="{{ path }}"><bdi>{{ path }}</bdi></td><td class="num">{{ edits }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No files edited.</p>
+  {% endif %}
+
+  <h2>Sessions</h2>
+  <table>
+    <colgroup>
+      <col style="width:33mm"><col style="width:20mm"><col><col style="width:13mm"><col style="width:17mm"><col style="width:24mm">
+    </colgroup>
+    <thead>
+      <tr>
+        <th scope="col">Started</th><th scope="col">Duration</th><th scope="col">Branch</th>
+        <th scope="col" class="num">Edits</th><th scope="col" class="num">Test runs</th><th scope="col">Pull request</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in repo.rows %}
+      <tr>
+        <td>{{ row.started_at | utc }}</td>
+        <td>{{ row.started_at | duration(row.ended_at) }}</td>
+        <td class="path" title="{{ row.branch or '' }}">{{ row.branch or "—" }}</td>
+        <td class="num">{{ row.edits }}</td>
+        <td class="num">{{ row.test_runs }}</td>
+        <td>{% if row.pull_request %}#{{ row.pull_request.number }} {{ row.pull_request.outcome }}{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if repo.rows_not_shown %}
+  <p class="more">And {{ repo.rows_not_shown }} more session{{ "s" if repo.rows_not_shown != 1 }}, counted in the totals above.</p>
+  {% endif %}
+</section>
+{% else %}
+<section class="empty-week">
+  <p class="kicker">{{ kicker }}</p>
+  <h1>A quiet week</h1>
+  <p>No agent sessions started in {{ report.week }}.</p>
+</section>
+{% endfor %}
+</body>
+</html>
